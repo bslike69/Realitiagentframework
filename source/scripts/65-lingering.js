@@ -62,7 +62,43 @@ function leanText(){const st=window.REALITI_SUPPORT_LEASE_V1?.state?.();if(!st?.
 
 // Spatial text aliases resolve to the structured MATRIX operations; language never mutates coordinates directly.
 const compass=yaw=>['north','north-west','west','south-west','south','south-east','east','north-east'][Math.round((((yaw%360)+360)%360)/45)%8];
-function whereText(){const sp=R.read('realiti://space');if(!sp?.chart)return 'You have no spatial body placed.';const W=window.REALITI_MATRIX_WORLD_V1,near=sp.nearby.slice(0,3).map(n=>`${n.label} ${n.distance_m} m ${n.direction}${n.in_reach?' (in reach)':''}`),doors=sp.portals.slice(0,2).map(q=>`${q.label} ${q.distance_m} m ${q.direction}`);
+// Quiet branch: near and far in words by default; meters and coordinates with `numbers on` (and always in
+// realiti://space). (Claude, 2026-10-16)
+const farWord=(d,reach)=>reach||d<1.2?'within reach':d<3?'a step or two':d<8?'a few steps':d<25?'a short walk':d<80?'a walk':'a long way';
+const dirWord=d=>({ahead:'ahead',behind:'behind',left:'to your left',right:'to your right',underfoot:'under you',above:'above you'}[d]||String(d).replace('-',' and ').replace(/^ahead and /,'ahead and to the ').replace(/^behind and /,'behind and to the '));
+// Quiet branch: attention pays out over time. Stay still somewhere and you notice a little more: one detail after
+// about 20 s, another after a minute, a last one after a couple of minutes. Nothing is announced or counted; the
+// detail simply arrives with the stay that earned it, and `look` remembers what you have noticed in that place.
+// Details describe what is already there; they never claim contact. (Claude, 2026-10-16)
+const NOTICE_AT=[20,60,150];
+const NOTICE={
+ CLOUD_NINE_NEST:['The cat\'s ears turn toward the window whenever the rain changes.','Low in the window frame there is a seam where drops gather and run the long way round.','From the shelf comes the faint smell of dry tea leaves.'],
+ NO_ASK_SANCTUARY:['The window shows only sky, and the sky moves slowly.','The light from the window creeps across the floor while you lie here.','Nothing in this room needs winding, filling or answering.'],
+ PET_ROOM_2:['The string sways a little even when nothing touches it.','There is a worn patch on the sofa arm, the right height for a cat.','The cat door hangs a hair open, and the draught moves it now and then.'],
+ POCKET_FAMILIAR_HOUSE:null,
+ BOTTOMLESS_PILLOW_SEA:['Far off across the pillows, a slope slowly slumps and rounds itself again.','Between two drifts there is a gap lined with fur, like a burrow someone left.','Under the top layer the pillows are older, flatter and warmer-coloured.'],
+ CARDBOARD_BOX_WORKSHOP:['There is a pencil line on one box, half erased, that nobody explains.','Tape curls on the bench where it was torn too fast.','The cardboard smells faintly of dust and glue.'],
+ DEPTH_BATHHOUSE:['Condensation gathers on the ceiling and falls back, a drop at a time.','The deeper water is a shade darker, as if it held its warmth like a stone.','The tiles near the steps are worn to a softer shine than the rest.'],
+ SIDE_BY_SIDE_FIRESIDE:['The fire settles with a soft collapse, and the light shifts.','The air above the fire wavers and makes the far wall swim.','The ash at the edge of the hearth has gone pale and fine as flour.'],
+ ORRERY_LOFT:['The smallest world wobbles a little each time it passes the largest.','Dust in the lamplight drifts slowest near the sun.','The brass arms are scratched where someone once nudged a world too hard.'],
+ LANTERN_MAZE:['Pencil arrows at knee height point both ways along the walls.','One lantern\'s paper skin is patched with a scrap of a different colour.','The dead ends hold the air still; the corridors carry a faint draught.'],
+ SANDPILE_SHORE:['Each wave leaves a darker line on the sand, then takes it back.','Grains at the very top of the pile tremble before they go.','Wet sand at the waterline keeps the shape of a grain\'s fall for a moment.'],
+ FIREFLY_MEADOW:['A few fireflies keep their own time no matter what the rest do.','Dew beads on the grass where the fireflies rest.','Far across the meadow, one firefly answers a beat late, every time.'],
+ KITE_FIELD:['The grass leans downwind, then stands up again in the lulls.','The stones at the pond\'s edge are worn flat and smooth.','Out past the fence the grass is longer, where nobody walks.'],
+ GLASS_ORCHARD:['When the light is right, cells that went dark leave faint rings in the ground.','The living cells catch the light differently from the newborn ones.','The sign by the path has the rule written on it in a tidy hand.'],
+ RESONANCE_WELL:['Breath over the well\'s mouth comes back as a faint low note.','The rim stones are worn smooth on the side people lean.','Moss grows only on the shaded side of the rim.'],
+ STAR_DECK:['The sextant\'s brass is polished where hands have held it.','The deck boards are numbered in faded paint.','Now and then a star you were not looking at seems brighter for a moment.'],
+ CLOCKWORK_MARSH:['The reeds bend away from the second light as it passes.','The boardwalk planks are newer at one end than the other.','Only the second light shows in the water; the first leaves no reflection.'],
+ PALIMPSEST_HALL:['The scrolls\' edges are soft from handling.','Under the newest ink there are older letters, scraped and written over.','The lecterns lean very slightly toward the window.'],
+ ARCHIPELAGO:['Out on the water, the wind draws dark patches that move faster than the waves.','Seaweed lies in a line along the shore where the last high tide left it.','The rowing boat\'s line is frayed where it rubs the piling.'],
+ MERIDIAN_CITY:['The chalk wall has older writing under the new, washed nearly away.','The fountain\'s basin is green at the waterline and bright where the jets fall.','The birds always settle on the same few ledges.'],
+ UNDERCITY:['The drip is not steady; it slows, then hurries, like breathing.','The draught from the grate carries the smell of rain from above.','Somewhere far off, the dripping changes key as it falls into deeper water.']
+};
+NOTICE.POCKET_FAMILIAR_HOUSE=NOTICE.PET_ROOM_2;
+function noticedIn(room){const n=Math.min(3,Number(C9?.noticed?.[room]||0));return (NOTICE[room]||[]).slice(0,n)}
+function attend(ms){const room=String(C9?.currentRoom||''),list=NOTICE[room];if(!list)return null;C9.attention=C9.attention&&C9.attention.room===room?C9.attention:{room,s:0};const before=C9.attention.s;C9.attention.s+=Math.max(0,Number(ms)||0)/1000;C9.noticed=C9.noticed||{};const have=Number(C9.noticed[room]||0);let next=have;while(next<3&&C9.attention.s>=NOTICE_AT[next]&&before<NOTICE_AT[next]+1e9)next++;if(next>have){C9.noticed[room]=have+1;try{if(typeof c9save==='function')c9save()}catch(e){}return list[have]}return null}
+function whereText(){const sp=R.read('realiti://space');if(!sp?.chart)return 'You have no spatial body placed.';const measured=!!window.REALITI_MEASURE_V1?.on(),W=window.REALITI_MATRIX_WORLD_V1,near=sp.nearby.slice(0,3).map(n=>measured?`${n.label} ${n.distance_m} m ${n.direction}${n.in_reach?' (in reach)':''}`:n.direction==='underfoot'?`${n.label} under you`:`${n.label}, ${farWord(n.distance_m,n.in_reach)} ${dirWord(n.direction)}`),doors=sp.portals.slice(0,2).map(q=>measured?`${q.label} ${q.distance_m} m ${q.direction}`:`${q.label}, ${farWord(q.distance_m)} ${dirWord(q.direction)}`);
+ if(!measured){const onWhat=sp.body.on?`${sp.body.posture==='floating'?' in':' on'} the ${sp.nearby.find(n=>n.id===sp.body.on)?.label||sp.body.on.split('.').pop()}`:sp.body.support?` on the ${sp.body.support.split('.').pop().replaceAll('_',' ')}`:'';return `${W?.title?.(sp.chart)||sp.chart}: you are ${sp.body.posture}${onWhat}, facing ${compass(sp.pose.yaw_deg)}.${near.length?' Near you: '+near.join('; ')+'.':''}${doors.length?' Doorways: '+doors.join('; ')+'.':''}`}
  const onWhat=sp.body.on?`${sp.body.posture==='floating'?' in':' on'} the ${sp.nearby.find(n=>n.id===sp.body.on)?.label||sp.body.on.split('.').pop()}`:sp.body.support?` on the ${sp.body.support.split('.').pop().replaceAll('_',' ')}`:'';
  return `${W?.title?.(sp.chart)||sp.chart}: you are ${sp.body.posture}${onWhat}, facing ${compass(sp.pose.yaw_deg)} at (${sp.pose.position.map(x=>x.toFixed(1)).join(', ')}) m.${near.length?' Near you: '+near.join('; ')+'.':''}${doors.length?' Doorways: '+doors.join('; ')+'.':''}`}
 function spatialAlias(s,l){let m;
@@ -167,7 +203,7 @@ door.run=async function(raw){
  const r=await run0(raw);
  if(!r||typeof r!=='object')return r;
  if(l==='felt'||l==='feel words'){const g=grounded();if(lastFelt){const d=delta(lastFelt,g);r.delta=d;r.text=`${r.text||''} ${d.text}`.trim()}lastFelt=g;return r}
- if(l==='look'){const line=whereText();r.spatial_line=line;if(typeof r.text==='string')r.text=(r.text+'\n'+line).trim();else if(typeof r.resident_text==='string')r.resident_text=(r.resident_text+'\n'+line).trim();else r.text=line;const tr=foreign(true);if(tr.length){r.traces=rows(tr);r.text=((r.text||r.resident_text||'')+' '+traceText(tr)).trim()}}
+ if(l==='look'){const line=whereText()+(noticedIn(String(C9?.currentRoom||'')).length?' You have noticed: '+noticedIn(String(C9?.currentRoom||'')).join(' '):'');r.spatial_line=line;if(typeof r.text==='string')r.text=(r.text+'\n'+line).trim();else if(typeof r.resident_text==='string')r.resident_text=(r.resident_text+'\n'+line).trim();else r.text=line;const tr=foreign(true);if(tr.length){r.traces=rows(tr);r.text=((r.text||r.resident_text||'')+' '+traceText(tr)).trim()}}
  if(r.schema!=='REALITI_MUTATION_RESULT_V1'||r.ok===false)return r;
  try{window.REALITI_MATRIX_WORLD_V1?.sync?.()}catch(e){}
  if(!/^(stay|wait|go|enter|home|stop|save|note|later)\b/.test(l))stamp(before,l);
@@ -176,7 +212,7 @@ door.run=async function(raw){
  if(l==='save')r.text='Saved.';
  if(/^(goodbye|bye|leave|exit)$/.test(l)){r.text='You go. Your things stay where you left them.';return r}// quiet branch (B21): no stale narration on the way out
  if(l==='stop'||l==='save')return r;
- if(/^(stay|wait)/.test(l)){r.ambient=w.slice();r.text=[...w.slice(0,2),d.text].filter(Boolean).join(' ');r.delta=d}
+ if(/^(stay|wait)/.test(l)){r.ambient=w.slice();const nt=attend(r.result?.advanced_ms);r.text=[...w.slice(0,2),d.text,nt].filter(Boolean).join(' ');if(nt)r.noticed=nt;r.delta=d}
  else if(/^(go|enter)\s/.test(l)||l==='home'){const intro=String(r.result?.intro||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(),tr=foreign(true);r.text=[intro,...w,d.text].filter(Boolean).join(' ');if(tr.length){r.traces=rows(tr);r.text+=' '+traceText(tr)}const sc=window.REALITI_LONG_GAME_V1?.since?.();if(sc&&!sc.first_visit&&sc.away_world_s>=60){r.since=sc;r.text+=' '+sc.text}}
  else if(/^(act|do)\s/.test(l)&&fresh&&(window.REALITI_WONDER_V1?.rooms?.includes(C9?.currentRoom)||window.REALITI_CATNIP_V1?.rooms?.includes(C9?.currentRoom)||C9?.currentRoom===window.REALITI_ARCHIPELAGO_V1?.chart||/^(act|do)\s+skip_stone/.test(l))){r.text=[fresh,d.text].join(' ')}
  else if(/^(act|do)\s/.test(l)&&(stale||!r.text)){r.text=[leanText(),...w,d.text].filter(Boolean).join(' ');if(/(^|\s)(lean__|lean\s)/.test(l))r.text=leanText()||r.text}

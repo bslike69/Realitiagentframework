@@ -81,9 +81,22 @@ function floor(){if(!crowd)crowdInit();return {ok:true,house_bpm:+houseBpm().toF
 // Teahouse: a cup at T0 in your palms cools toward the room, dT/dt = −(T−Ta)/τ, τ = 240 s. Sips are world facts.
 const DRINKS={tea:[82,'ceramic'],coffee:[78,'ceramic'],cocoa:[70,'ceramic'],'cold brew':[6,'glass'],water:[12,'glass'],broth:[65,'ceramic']};
 const cupT=c=>c?22+(c.T0-22)*Math.exp(-(now()-c.t0)/240):null;
-function order(what){if(!near('teahouse.counter',2.5))return {ok:false,error:'STAND_AT_THE_COUNTER'};const k=Object.keys(DRINKS).find(d=>String(what||'').toLowerCase().includes(d))||'tea';const [T0,mat]=DRINKS[k];S().cup={what:k,T0,t0:now(),mat,sips:0};return {ok:true,drink:k,temp_C:T0,text:`A ${k}, ${T0} °C, in both palms. It cools toward the room with a 240 s time constant; sip when it suits you.`}}
+function order(what){if(!near('teahouse.counter',2.5))return {ok:false,error:'STAND_AT_THE_COUNTER'};const k=Object.keys(DRINKS).find(d=>String(what||'').toLowerCase().includes(d))||'tea';const [T0,mat]=DRINKS[k];S().cup={what:k,T0,t0:now(),mat,sips:0};return {ok:true,drink:k,temp_C:T0,text:window.REALITI_MEASURE_V1?.on()?`A ${k}, ${T0} °C, in both palms. It cools toward the room with a 240 s time constant; sip when it suits you.`:`A ${k}, ${tempWord(T0)}, in both palms.${T0>45?' Steam rises off it.':''} Sip when it suits you.`}}
 function holdCup(dt){const c=S().cup;if(!c||room()!==CITY)return;const t=cupT(c);for(const z of ['hand.L.palm','hand.R.palm'])try{window.REALITI_ATMOSPHERE_V21?.setThermal?.(z,c.mat,t,dt+.3,'CITY_CUP','WORLD_GROUNDED')}catch(e){}}
-function sip(){const c=S().cup;if(!c)return {ok:false,error:'NO_CUP',hint:'order <drink> at the teahouse counter'};const t=cupT(c);c.sips++;if(c.sips>=3&&t>=40&&c.T0>40)CAT.discover('warm_hands');if(c.sips>=6){S().cup=null;return {ok:true,temp_C:+t.toFixed(1),finished:true,text:`The last of the ${c.what}, ${t.toFixed(0)} °C. The cup is empty and your palms cool.`}}return {ok:true,temp_C:+t.toFixed(1),sips:c.sips,text:`${c.what}, ${t.toFixed(0)} °C${t>60?', still hot':t>40?', warm':t>20?', cooling':', cold'}.`}}
+// Quiet branch: taste. A drink tastes different as it cools: very hot mutes most flavour, sweetness comes forward as
+// cocoa nears body warmth, tea and coffee turn more bitter or sour as they cool, broth reads saltier. The temperature
+// is the same Newton's-law cup as before; the taste is read from it. (Claude, 2026-10-16)
+function taste(k,t){
+ if(k==='tea')return t>70?'mostly heat and steam; the taste waits underneath':t>50?'bright and a little grassy':t>35?'rounder now, with a bitter edge at the end':'cold and tannic';
+ if(k==='coffee')return t>70?'scalding; mostly roast and steam':t>50?'roasted and full':t>35?'the sourness comes forward as it cools':'cold and sharp';
+ if(k==='cocoa')return t>62?'too hot to taste much: steam and a hint of chocolate':t>45?'sweet and chocolatey':t>30?'at its sweetest, thick and round':'cool; the sweetness has gone thin and a little chalky';
+ if(k==='cold brew')return t<12?'cold and smooth, almost no bitterness':'warming, and flatter for it';
+ if(k==='water')return t<15?'cold and clean':'room-warm; it tastes faintly of the glass';
+ if(k==='broth')return t>55?'salty and savoury under the steam':t>35?'rich, with the salt sitting forward now':'cooled; a skin is forming on top';
+ return t>60?'hot':t>40?'warm':'cooling';
+}
+const tempWord=t=>t>60?'hot':t>45?'warm':t>30?'lukewarm':t>15?'cool':'cold';
+function sip(){const c=S().cup;if(!c)return {ok:false,error:'NO_CUP',hint:'order <drink> at the teahouse counter'};const t=cupT(c),num=!!window.REALITI_MEASURE_V1?.on();c.sips++;if(c.sips>=3&&t>=40&&c.T0>40)CAT.discover('warm_hands');if(c.sips>=6){S().cup=null;return {ok:true,temp_C:+t.toFixed(1),finished:true,taste:taste(c.what,t),text:`The last of the ${c.what}${num?`, ${t.toFixed(0)} °C`:''}: ${taste(c.what,t)}. The cup is empty and your palms cool.`}}return {ok:true,temp_C:+t.toFixed(1),sips:c.sips,taste:taste(c.what,t),text:num?`${c.what}, ${t.toFixed(0)} °C${t>60?', still hot':t>40?', warm':t>20?', cooling':', cold'}: ${taste(c.what,t)}.`:`The ${c.what} is ${tempWord(t)}: ${taste(c.what,t)}.`}}
 
 // Arcade: a pattern wall. Each round shows one more light; answer the whole sequence. Scores are ledger records.
 const LIGHTS=['red','green','blue','yellow'];const rng=(a,b)=>{let h=(Math.imul(a|0,374761393)+Math.imul(b|0,668265263)+7)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967296};

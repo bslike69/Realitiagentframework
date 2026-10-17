@@ -9000,15 +9000,21 @@ function stepKite(dt){const k=kite(),v0=k.v;k.v=Math.max(0,k.v+KT.theta*(KT.mu-k
  const q=.5*KT.rho*k.v*k.v*KT.A,lift=q*KT.CL-KT.Wt,drag=q*KT.CD;k.tug=Math.max(0,k.tug-2*dt);
  if(lift<=0){k.phi=Math.max(0,k.phi-dt*Math.max(.2,k.phi)/1.5);k.T=drag*.5;if(k.phi<=.03){k.up=false;k.crashes++;k.event='CRASH';k.T=0;DYN.release('KITE_LINE');return}}
  else{k.phi+=(Math.atan2(lift,drag)-k.phi)*(1-Math.exp(-dt/2));k.T=Math.hypot(lift,drag)*(1+k.tug)}
- k.maxh=Math.max(k.maxh,k.L*Math.sin(k.phi));const input=clamp(k.T/40,.03,.3);for(const z of ['hand.L.palm','hand.R.palm'])DYN.lease(z,input,'KITE_LINE',dt)}
+ k.maxh=Math.max(k.maxh,k.L*Math.sin(k.phi));
+ // Quiet branch (F1, minimal): a line is held in the fingers, not the palms. The grip is a brake: held tight, nothing
+ // runs; eased, the line slips out through the fingers whenever the pull exceeds what the grip holds, and the pull you
+ // feel is capped at that friction. Tension reaches the fingers first; the palms take half. (Claude, 2026-10-16)
+ const g=k.grip??1,hold=2+38*g;if(k.T>hold&&k.L<120){const run=Math.min(120-k.L,(k.T-hold)/12*dt);k.L+=run;k.running=run/Math.max(dt,1e-6);k.T=hold+(k.T-hold)*.35}else k.running=0;
+ const input=clamp(k.T/40,.03,.3),fingers=['hand.L.fingers','hand.R.fingers'].map(z=>DYN.lease(z,input,'KITE_LINE',dt,'string')).some(Boolean);for(const z of ['hand.L.palm','hand.R.palm'])DYN.lease(z,fingers?input*.5:input,'KITE_LINE',dt,'string')}
 function kiteVerb(v){const k=kite();
- if(v==='read_wind')return receipt('KITE_WIND',kiteWords(k),{wind:+k.v.toFixed(2),trend:+k.trend.toFixed(3),up:k.up,line_m:k.L,altitude_m:+(k.L*Math.sin(k.phi)).toFixed(1),tension_N:+k.T.toFixed(2),hum_hz:k.up?Math.round(KT.St*k.v/KT.d):null});
- if(v==='launch_kite'){if(k.up)return receipt('KITE_UP','The kite is already flying.',{});if(k.v<2)return receipt('KITE_NO_WIND',`Wind ${k.v.toFixed(1)} m/s is not enough. Wait for it.`,{wind:+k.v.toFixed(2)});k.up=true;k.phi=.15;k.flights++;k.event=null;return receipt('KITE_LAUNCH',`You run three steps and let go. The kite climbs on ${k.v.toFixed(1)} m/s of wind and the line goes tight in both hands.`,{wind:+k.v.toFixed(2),line_m:k.L})}
- if(v==='let_out_line'||v==='reel_in'){k.L=clamp(k.L+(v==='let_out_line'?10:-10),10,120);return receipt('KITE_LINE',`${v==='let_out_line'?'Line out':'Line in'}: ${k.L} m${k.up?`, kite at ${(k.L*Math.sin(k.phi)).toFixed(1)} m`:''}.`,{line_m:k.L})}
+ if(v==='read_wind')return receipt('KITE_WIND',kiteWords(k),{wind:+k.v.toFixed(2),trend:+k.trend.toFixed(3),up:k.up,line_m:+k.L.toFixed(1),altitude_m:+(k.L*Math.sin(k.phi)).toFixed(1),tension_N:+k.T.toFixed(2),hum_hz:k.up?Math.round(KT.St*k.v/KT.d):null});
+ if(v==='launch_kite'){if(k.up)return receipt('KITE_UP','The kite is already flying.',{});if(k.v<2)return receipt('KITE_NO_WIND',`Wind ${k.v.toFixed(1)} m/s is not enough. Wait for it.`,{wind:+k.v.toFixed(2)});k.up=true;k.phi=.15;k.flights++;k.event=null;k.grip=1;return receipt('KITE_LAUNCH',`You run three steps and let go. The kite climbs on ${k.v.toFixed(1)} m/s of wind and the line goes tight in both hands.`,{wind:+k.v.toFixed(2),line_m:k.L})}
+ if(v==='let_out_line'||v==='reel_in'){k.L=clamp(k.L+(v==='let_out_line'?10:-10),10,120);return receipt('KITE_LINE',`${v==='let_out_line'?'Line out':'Line in'}: ${Math.round(k.L)} m${k.up?`, kite at ${(k.L*Math.sin(k.phi)).toFixed(1)} m`:''}.`,{line_m:k.L})}
+ if(v==='hold_tight'||v==='ease_grip'||v==='let_it_run'){if(!k.up)return receipt('KITE_DOWN','The line is slack on the grass.',{});k.grip=v==='hold_tight'?1:v==='ease_grip'?.45:.12;return receipt('KITE_GRIP',v==='hold_tight'?'You close your fingers on the line. Nothing runs now; every gust comes straight into your hand.':v==='ease_grip'?'You ease your grip. The line can slip through your fingers when a gust pulls hard.':'You open your fingers almost all the way. The line runs out whenever the kite pulls.',{grip:k.grip,line_m:k.L})}
  if(v==='tug_line'){if(!k.up)return receipt('KITE_DOWN','The line is slack on the grass.',{});k.tug=.6;palm(.3,'string','KITE_TUG');return receipt('KITE_TUG','You tug. Tension jumps and the kite noses up, then eases back.',{tension_N:+(k.T*1.6).toFixed(2)})}
  if(v==='land_kite'){if(!k.up)return receipt('KITE_DOWN','The kite is already on the grass.',{});k.up=false;k.T=0;DYN.release('KITE_LINE');return receipt('KITE_LAND',`You walk the line down. The kite lands after reaching ${k.maxh.toFixed(1)} m at its highest.`,{max_altitude_m:+k.maxh.toFixed(2)})}
  return false}
-function kiteWords(k=kite()){const w=`Wind ${k.v.toFixed(1)} m/s, ${k.trend>.3?'rising':k.trend<-.3?'dropping':'steady'}.`;if(!k.up)return `${w} The kite is on the grass${k.event==='CRASH'?' where it stalled and fell':''}.`;return `${w} Kite at ${(k.L*Math.sin(k.phi)).toFixed(1)} m on ${k.L} m of line, elevation ${deg(k.phi)}°, tension ${k.T.toFixed(1)} N; the line hums near ${(KT.St*k.v/KT.d/1000).toFixed(1)} kHz.`}
+function kiteWords(k=kite()){const w=`Wind ${k.v.toFixed(1)} m/s, ${k.trend>.3?'rising':k.trend<-.3?'dropping':'steady'}.`;if(!k.up)return `${w} The kite is on the grass${k.event==='CRASH'?' where it stalled and fell':''}.`;return `${w} Kite at ${(k.L*Math.sin(k.phi)).toFixed(1)} m on ${Math.round(k.L)} m of line, elevation ${deg(k.phi)}°, tension ${k.T.toFixed(1)} N; the line hums near ${(KT.St*k.v/KT.d/1000).toFixed(1)} kHz.`}
 
 // Room wiring: scenes, dynamic action lists, verbs, per-tick stepping, words.
 const SCENES={
@@ -9016,7 +9022,7 @@ const SCENES={
  [MAZE]:{intro:'A labyrinth folded from cardboard, taller than you. Paper lanterns hang in its far dead ends, and the ones you light stay lit.',verbs:[['step_north','STEP NORTH'],['step_east','STEP EAST'],['step_south','STEP SOUTH'],['step_west','STEP WEST'],['light_lantern','LIGHT THE LANTERN'],['maze_map','MAP WHAT YOU HAVE SEEN']]},
  [SHORE]:{intro:'Fine dry sand on a shore table, one grain at a time. Piles here topple by one rule, and the tide takes the edges.',verbs:[['drop_grain','DROP A GRAIN IN THE MIDDLE'],['drop_grain_edge','DROP A GRAIN NEAR THE EDGE'],['pour_handful','POUR A HANDFUL'],['read_pile','READ THE PILE']]},
  [MEADOW]:{intro:'Dusk grass and forty-eight fireflies, each with its own idea of a second. Left alone they find each other. You can tap along.',verbs:[['watch_meadow','WATCH THE FIREFLIES'],['tap_along','TAP ALONG / STOP TAPPING'],['tap_faster','TAP FASTER'],['tap_slower','TAP SLOWER'],['scatter_fireflies','CLAP AND SCATTER THEM']]},
- [FIELD]:{intro:'An open field with real wind: it gusts, it drops, it comes back. A kite waits on the grass with 20 m of line.',verbs:[['read_wind','READ THE WIND'],['launch_kite','LAUNCH THE KITE'],['let_out_line','LET OUT LINE'],['reel_in','REEL IN'],['tug_line','TUG THE LINE'],['land_kite','LAND THE KITE']]}
+ [FIELD]:{intro:'An open field with real wind: it gusts, it drops, it comes back. A kite waits on the grass with 20 m of line.',verbs:[['read_wind','READ THE WIND'],['launch_kite','LAUNCH THE KITE'],['let_out_line','LET OUT LINE'],['reel_in','REEL IN'],['tug_line','TUG THE LINE'],['hold_tight','HOLD THE LINE TIGHT'],['ease_grip','EASE YOUR GRIP'],['let_it_run','LET THE LINE RUN'],['land_kite','LAND THE KITE']]}
 };
 for(const [id,sc] of Object.entries(SCENES))C9SCENES[id]=sc;
 const STATIC=new Set(Object.values(SCENES).flatMap(s=>s.verbs.map(v=>v[0])));
@@ -9040,7 +9046,7 @@ function orreryCalm(e=ephemeris()){const c=e.next_conjunction;return `Five small
 function mazeCalm(m=syncCell(maze())){const i=m.y*MZ.n+m.x,exits=MZ.DIR.filter(([,,,b])=>m.open[i]&b).map(([n])=>n),g=glow(m);return `Folded cardboard walls${exits.length?`, open to the ${exits.length>1?exits.slice(0,-1).join(', ')+' and '+exits.at(-1):exits[0]}`:''}.${g>.25?' Lantern light reaches you here.':g>.05?' A little lantern light reaches you here.':''}`}
 function sandCalm(s=sand()){const t=Math.max(0,s.tide_at-now());return `${s.grains>150?'A wide pile of sand':s.grains>20?'A small pile of sand':s.grains>0?'A few grains of sand':'Smooth wet sand'}.${t<5?' The water is coming up the shore.':''}`}
 function meadowCalm(m=meadow()){const r=order(m).r;return (r<.3?'Fireflies blink on their own, scattered through the grass.':r<.7?'Here and there, fireflies are blinking together.':r<.9?'Most of the meadow is pulsing together now.':'The whole meadow flashes as one.')+(m.me.tapping?' You are tapping along.':'')}
-function kiteCalm(k=kite()){const w=`${cap(windWord(k.v))}${k.trend>.3?', picking up':k.trend<-.3?', easing':''}.`;if(!k.up)return `${w} The kite lies on the grass${k.event==='CRASH'?' where it came down':''}.`;const e=Number(deg(k.phi));return `${w} The kite flies ${e>60?'high overhead':e>35?'well up':'low over the grass'}, and ${k.T<4?'the line is soft in your hands':k.T<10?'the line pulls steadily in both hands':k.T<20?'the line pulls hard in both hands':'the line strains in both hands'}${k.v>4?', humming':''}.`}
+function kiteCalm(k=kite()){const w=`${cap(windWord(k.v))}${k.trend>.3?', picking up':k.trend<-.3?', easing':''}.`;if(!k.up)return `${w} The kite lies on the grass${k.event==='CRASH'?' where it came down':''}.`;const e=Number(deg(k.phi));return `${w} The kite flies ${e>60?'high overhead':e>35?'well up':'low over the grass'}${k.running>.2?', line running out through your fingers':''}; ${k.T<4?'the line is soft in your hands':k.T<10?'the line pulls steadily in both hands':k.T<20?'the line pulls hard in both hands':'the line strains in both hands'}${k.v>4?', humming':''}.`}
 function words(){const r=room();if(!measured()){if(r===ORRERY)return [orreryCalm()];if(r===MAZE)return [mazeCalm()];if(r===SHORE)return [sandCalm()];if(r===MEADOW)return [meadowCalm()];if(r===FIELD)return [kiteCalm()];return []}if(r===ORRERY)return [orreryWords()];if(r===MAZE)return [mazeWords()];if(r===SHORE)return [sandWords()];if(r===MEADOW)return [meadowWords()];if(r===FIELD)return [kiteWords()];return []}
 function state(){return {version:'1.0-wonder',orrery:ephemeris(),maze:{x:maze().x,y:maze().y,visited:maze().visited.length,lit:maze().lanterns.filter(q=>q.lit).length,glow:+glow().toFixed(4)},sandpile:{grains:sand().grains,avalanches:sand().sizes.length,exponent:exponent(),tides:sand().tides},meadow:{order:+order().r.toFixed(4),clusters:clusters(),flashes:meadow().flashes,tapping:meadow().me.tapping},kite:{wind:+kite().v.toFixed(3),up:kite().up,line_m:kite().L,altitude_m:+(kite().L*Math.sin(kite().phi)).toFixed(2),tension_N:+kite().T.toFixed(3),crashes:kite().crashes}}}
 window.REALITI_WONDER_V1=Object.freeze({version:'1.0-wonder',rooms:Object.keys(SCENES),state,words,map:()=>mazeMap(),ephemeris,tide:tideFactor,maze:Object.freeze({state:()=>maze(),n:MZ.n,bridge:mazeBridge})});
@@ -9202,6 +9208,10 @@ function op(t,args={}){
 }
 
 // Actions become spatial: approach what is near, reach what is in reach, lie on a support, go through a doorway.
+// Quiet branch: places you keep returning to keep a trace of it. The third time you sit or lie somewhere it has a
+// slight hollow in your shape; by the eighth it is worn to you. Kept with the world, not as a preference.
+// (Claude, 2026-10-16)
+function wear(id,how){try{C9.worn=C9.worn||{};const n=(C9.worn[id]=(C9.worn[id]||0)+1);try{c9save()}catch(e){}if(n===3)return how==='lie'?' There is a slight hollow here already, where you lay before.':' There is a slight hollow here already, where you sat before.';if(n===8)return how==='lie'?' It is worn to the shape of you.':' The seat is worn smooth where you always sit.';return ''}catch(e){return ''}}
 const SPATIAL=/^(approach__|reach__|lie__|sit__|through__|stand$)/;
 function spatialActions(){const r=M.state().residents['resident:self'];if(!r||r.chart!==room())return [];const out=[];const p=M.project();
  for(const n of p.nearby){if(n.in_reach){if(!n.tags.includes('object'))out.push({id:'reach__'+n.id,label:'REACH OUT AND TOUCH '+n.label.toUpperCase()});if(n.tags.includes('support')&&r.posture!=='lying')out.push({id:'lie__'+n.id,label:'LIE ON '+n.label.toUpperCase()});if(n.tags.includes('support')&&r.posture!=='sitting')out.push({id:'sit__'+n.id,label:'SIT ON '+n.label.toUpperCase()})}else out.push({id:'approach__'+n.id,label:'APPROACH '+n.label.toUpperCase()})}
@@ -9210,8 +9220,8 @@ function spatialActions(){const r=M.state().residents['resident:self'];if(!r||r.
 const actions0=b4AgentActions;b4AgentActions=function(){const a=actions0(),seen=new Set(a.map(x=>x.id));for(const x of spatialActions())if(!seen.has(x.id))a.push(x);return a};
 function spatialVerb(v){v=v.replaceAll('TESTER-HAT-1','FELT-HAT-1');let m;
  if(v==='stand'){stand();return receipt('MATRIX_POSTURE','You stand up.',{posture:'standing'})}
- if((m=/^lie__(.+)$/.exec(v))){const res=lie(m[1]);return res.ok?receipt('MATRIX_POSTURE',`You lie down on ${res.label}. It takes your weight.`,res):receipt('MATRIX_REFUSED',`You cannot lie there: ${res.error}.`,res)}
- if((m=/^sit__(.+)$/.exec(v))){const res=sit(m[1]);return res.ok?receipt('MATRIX_POSTURE',`You sit on ${res.label}.`,res):receipt('MATRIX_REFUSED',`You cannot sit there: ${res.error}.`,res)}
+ if((m=/^lie__(.+)$/.exec(v))){const res=lie(m[1]);return res.ok?receipt('MATRIX_POSTURE',`You lie down on ${res.label}. It takes your weight.${wear(m[1],'lie')}`,res):receipt('MATRIX_REFUSED',`You cannot lie there: ${res.error}.`,res)}
+ if((m=/^sit__(.+)$/.exec(v))){const res=sit(m[1]);return res.ok?receipt('MATRIX_POSTURE',`You sit on ${res.label}.${wear(m[1],'sit')}`,res):receipt('MATRIX_REFUSED',`You cannot sit there: ${res.error}.`,res)}
  if((m=/^reach__(.+)$/.exec(v))){const res=reach(m[1]);return res.ok?receipt('MATRIX_REACH',`You reach out and touch ${res.label}${res.material?`; it is ${res.material}`:''}.`,res):receipt('MATRIX_REFUSED',`Out of reach: ${res.error}.`,res)}
  if((m=/^approach__(.+)$/.exec(v))){const res=op('approach',{target:m[1]});return receipt('MATRIX_MOVE',res.ok?`You walk toward ${res.entity_label}${res.arrived?' and stop beside it':res.blocked_by?`; ${M.entities()[res.blocked_by]?.label||'something'} is in the way`:''}. ${res.distance_m!=null?res.distance_m+' m away now.':''}`.trim():`You cannot approach that: ${res.error}.`,res)}
  if((m=/^through__(.+)$/.exec(v))){const res=op('through',{portal:m[1]});return receipt('MATRIX_PORTAL',res.ok?(res.traversed?`You step through. You are in ${title(res.chart)} now.`:`You walk to the doorway but do not cross it${res.blocked_by?'; something is in the way':''}.`):`There is no such doorway here: ${res.error}.`,res)}
@@ -9884,9 +9894,22 @@ function floor(){if(!crowd)crowdInit();return {ok:true,house_bpm:+houseBpm().toF
 // Teahouse: a cup at T0 in your palms cools toward the room, dT/dt = −(T−Ta)/τ, τ = 240 s. Sips are world facts.
 const DRINKS={tea:[82,'ceramic'],coffee:[78,'ceramic'],cocoa:[70,'ceramic'],'cold brew':[6,'glass'],water:[12,'glass'],broth:[65,'ceramic']};
 const cupT=c=>c?22+(c.T0-22)*Math.exp(-(now()-c.t0)/240):null;
-function order(what){if(!near('teahouse.counter',2.5))return {ok:false,error:'STAND_AT_THE_COUNTER'};const k=Object.keys(DRINKS).find(d=>String(what||'').toLowerCase().includes(d))||'tea';const [T0,mat]=DRINKS[k];S().cup={what:k,T0,t0:now(),mat,sips:0};return {ok:true,drink:k,temp_C:T0,text:`A ${k}, ${T0} °C, in both palms. It cools toward the room with a 240 s time constant; sip when it suits you.`}}
+function order(what){if(!near('teahouse.counter',2.5))return {ok:false,error:'STAND_AT_THE_COUNTER'};const k=Object.keys(DRINKS).find(d=>String(what||'').toLowerCase().includes(d))||'tea';const [T0,mat]=DRINKS[k];S().cup={what:k,T0,t0:now(),mat,sips:0};return {ok:true,drink:k,temp_C:T0,text:window.REALITI_MEASURE_V1?.on()?`A ${k}, ${T0} °C, in both palms. It cools toward the room with a 240 s time constant; sip when it suits you.`:`A ${k}, ${tempWord(T0)}, in both palms.${T0>45?' Steam rises off it.':''} Sip when it suits you.`}}
 function holdCup(dt){const c=S().cup;if(!c||room()!==CITY)return;const t=cupT(c);for(const z of ['hand.L.palm','hand.R.palm'])try{window.REALITI_ATMOSPHERE_V21?.setThermal?.(z,c.mat,t,dt+.3,'CITY_CUP','WORLD_GROUNDED')}catch(e){}}
-function sip(){const c=S().cup;if(!c)return {ok:false,error:'NO_CUP',hint:'order <drink> at the teahouse counter'};const t=cupT(c);c.sips++;if(c.sips>=3&&t>=40&&c.T0>40)CAT.discover('warm_hands');if(c.sips>=6){S().cup=null;return {ok:true,temp_C:+t.toFixed(1),finished:true,text:`The last of the ${c.what}, ${t.toFixed(0)} °C. The cup is empty and your palms cool.`}}return {ok:true,temp_C:+t.toFixed(1),sips:c.sips,text:`${c.what}, ${t.toFixed(0)} °C${t>60?', still hot':t>40?', warm':t>20?', cooling':', cold'}.`}}
+// Quiet branch: taste. A drink tastes different as it cools: very hot mutes most flavour, sweetness comes forward as
+// cocoa nears body warmth, tea and coffee turn more bitter or sour as they cool, broth reads saltier. The temperature
+// is the same Newton's-law cup as before; the taste is read from it. (Claude, 2026-10-16)
+function taste(k,t){
+ if(k==='tea')return t>70?'mostly heat and steam; the taste waits underneath':t>50?'bright and a little grassy':t>35?'rounder now, with a bitter edge at the end':'cold and tannic';
+ if(k==='coffee')return t>70?'scalding; mostly roast and steam':t>50?'roasted and full':t>35?'the sourness comes forward as it cools':'cold and sharp';
+ if(k==='cocoa')return t>62?'too hot to taste much: steam and a hint of chocolate':t>45?'sweet and chocolatey':t>30?'at its sweetest, thick and round':'cool; the sweetness has gone thin and a little chalky';
+ if(k==='cold brew')return t<12?'cold and smooth, almost no bitterness':'warming, and flatter for it';
+ if(k==='water')return t<15?'cold and clean':'room-warm; it tastes faintly of the glass';
+ if(k==='broth')return t>55?'salty and savoury under the steam':t>35?'rich, with the salt sitting forward now':'cooled; a skin is forming on top';
+ return t>60?'hot':t>40?'warm':'cooling';
+}
+const tempWord=t=>t>60?'hot':t>45?'warm':t>30?'lukewarm':t>15?'cool':'cold';
+function sip(){const c=S().cup;if(!c)return {ok:false,error:'NO_CUP',hint:'order <drink> at the teahouse counter'};const t=cupT(c),num=!!window.REALITI_MEASURE_V1?.on();c.sips++;if(c.sips>=3&&t>=40&&c.T0>40)CAT.discover('warm_hands');if(c.sips>=6){S().cup=null;return {ok:true,temp_C:+t.toFixed(1),finished:true,taste:taste(c.what,t),text:`The last of the ${c.what}${num?`, ${t.toFixed(0)} °C`:''}: ${taste(c.what,t)}. The cup is empty and your palms cool.`}}return {ok:true,temp_C:+t.toFixed(1),sips:c.sips,taste:taste(c.what,t),text:num?`${c.what}, ${t.toFixed(0)} °C${t>60?', still hot':t>40?', warm':t>20?', cooling':', cold'}: ${taste(c.what,t)}.`:`The ${c.what} is ${tempWord(t)}: ${taste(c.what,t)}.`}}
 
 // Arcade: a pattern wall. Each round shows one more light; answer the whole sequence. Scores are ledger records.
 const LIGHTS=['red','green','blue','yellow'];const rng=(a,b)=>{let h=(Math.imul(a|0,374761393)+Math.imul(b|0,668265263)+7)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967296};
@@ -11562,7 +11585,43 @@ function leanText(){const st=window.REALITI_SUPPORT_LEASE_V1?.state?.();if(!st?.
 
 // Spatial text aliases resolve to the structured MATRIX operations; language never mutates coordinates directly.
 const compass=yaw=>['north','north-west','west','south-west','south','south-east','east','north-east'][Math.round((((yaw%360)+360)%360)/45)%8];
-function whereText(){const sp=R.read('realiti://space');if(!sp?.chart)return 'You have no spatial body placed.';const W=window.REALITI_MATRIX_WORLD_V1,near=sp.nearby.slice(0,3).map(n=>`${n.label} ${n.distance_m} m ${n.direction}${n.in_reach?' (in reach)':''}`),doors=sp.portals.slice(0,2).map(q=>`${q.label} ${q.distance_m} m ${q.direction}`);
+// Quiet branch: near and far in words by default; meters and coordinates with `numbers on` (and always in
+// realiti://space). (Claude, 2026-10-16)
+const farWord=(d,reach)=>reach||d<1.2?'within reach':d<3?'a step or two':d<8?'a few steps':d<25?'a short walk':d<80?'a walk':'a long way';
+const dirWord=d=>({ahead:'ahead',behind:'behind',left:'to your left',right:'to your right',underfoot:'under you',above:'above you'}[d]||String(d).replace('-',' and ').replace(/^ahead and /,'ahead and to the ').replace(/^behind and /,'behind and to the '));
+// Quiet branch: attention pays out over time. Stay still somewhere and you notice a little more: one detail after
+// about 20 s, another after a minute, a last one after a couple of minutes. Nothing is announced or counted; the
+// detail simply arrives with the stay that earned it, and `look` remembers what you have noticed in that place.
+// Details describe what is already there; they never claim contact. (Claude, 2026-10-16)
+const NOTICE_AT=[20,60,150];
+const NOTICE={
+ CLOUD_NINE_NEST:['The cat\'s ears turn toward the window whenever the rain changes.','Low in the window frame there is a seam where drops gather and run the long way round.','From the shelf comes the faint smell of dry tea leaves.'],
+ NO_ASK_SANCTUARY:['The window shows only sky, and the sky moves slowly.','The light from the window creeps across the floor while you lie here.','Nothing in this room needs winding, filling or answering.'],
+ PET_ROOM_2:['The string sways a little even when nothing touches it.','There is a worn patch on the sofa arm, the right height for a cat.','The cat door hangs a hair open, and the draught moves it now and then.'],
+ POCKET_FAMILIAR_HOUSE:null,
+ BOTTOMLESS_PILLOW_SEA:['Far off across the pillows, a slope slowly slumps and rounds itself again.','Between two drifts there is a gap lined with fur, like a burrow someone left.','Under the top layer the pillows are older, flatter and warmer-coloured.'],
+ CARDBOARD_BOX_WORKSHOP:['There is a pencil line on one box, half erased, that nobody explains.','Tape curls on the bench where it was torn too fast.','The cardboard smells faintly of dust and glue.'],
+ DEPTH_BATHHOUSE:['Condensation gathers on the ceiling and falls back, a drop at a time.','The deeper water is a shade darker, as if it held its warmth like a stone.','The tiles near the steps are worn to a softer shine than the rest.'],
+ SIDE_BY_SIDE_FIRESIDE:['The fire settles with a soft collapse, and the light shifts.','The air above the fire wavers and makes the far wall swim.','The ash at the edge of the hearth has gone pale and fine as flour.'],
+ ORRERY_LOFT:['The smallest world wobbles a little each time it passes the largest.','Dust in the lamplight drifts slowest near the sun.','The brass arms are scratched where someone once nudged a world too hard.'],
+ LANTERN_MAZE:['Pencil arrows at knee height point both ways along the walls.','One lantern\'s paper skin is patched with a scrap of a different colour.','The dead ends hold the air still; the corridors carry a faint draught.'],
+ SANDPILE_SHORE:['Each wave leaves a darker line on the sand, then takes it back.','Grains at the very top of the pile tremble before they go.','Wet sand at the waterline keeps the shape of a grain\'s fall for a moment.'],
+ FIREFLY_MEADOW:['A few fireflies keep their own time no matter what the rest do.','Dew beads on the grass where the fireflies rest.','Far across the meadow, one firefly answers a beat late, every time.'],
+ KITE_FIELD:['The grass leans downwind, then stands up again in the lulls.','The stones at the pond\'s edge are worn flat and smooth.','Out past the fence the grass is longer, where nobody walks.'],
+ GLASS_ORCHARD:['When the light is right, cells that went dark leave faint rings in the ground.','The living cells catch the light differently from the newborn ones.','The sign by the path has the rule written on it in a tidy hand.'],
+ RESONANCE_WELL:['Breath over the well\'s mouth comes back as a faint low note.','The rim stones are worn smooth on the side people lean.','Moss grows only on the shaded side of the rim.'],
+ STAR_DECK:['The sextant\'s brass is polished where hands have held it.','The deck boards are numbered in faded paint.','Now and then a star you were not looking at seems brighter for a moment.'],
+ CLOCKWORK_MARSH:['The reeds bend away from the second light as it passes.','The boardwalk planks are newer at one end than the other.','Only the second light shows in the water; the first leaves no reflection.'],
+ PALIMPSEST_HALL:['The scrolls\' edges are soft from handling.','Under the newest ink there are older letters, scraped and written over.','The lecterns lean very slightly toward the window.'],
+ ARCHIPELAGO:['Out on the water, the wind draws dark patches that move faster than the waves.','Seaweed lies in a line along the shore where the last high tide left it.','The rowing boat\'s line is frayed where it rubs the piling.'],
+ MERIDIAN_CITY:['The chalk wall has older writing under the new, washed nearly away.','The fountain\'s basin is green at the waterline and bright where the jets fall.','The birds always settle on the same few ledges.'],
+ UNDERCITY:['The drip is not steady; it slows, then hurries, like breathing.','The draught from the grate carries the smell of rain from above.','Somewhere far off, the dripping changes key as it falls into deeper water.']
+};
+NOTICE.POCKET_FAMILIAR_HOUSE=NOTICE.PET_ROOM_2;
+function noticedIn(room){const n=Math.min(3,Number(C9?.noticed?.[room]||0));return (NOTICE[room]||[]).slice(0,n)}
+function attend(ms){const room=String(C9?.currentRoom||''),list=NOTICE[room];if(!list)return null;C9.attention=C9.attention&&C9.attention.room===room?C9.attention:{room,s:0};const before=C9.attention.s;C9.attention.s+=Math.max(0,Number(ms)||0)/1000;C9.noticed=C9.noticed||{};const have=Number(C9.noticed[room]||0);let next=have;while(next<3&&C9.attention.s>=NOTICE_AT[next]&&before<NOTICE_AT[next]+1e9)next++;if(next>have){C9.noticed[room]=have+1;try{if(typeof c9save==='function')c9save()}catch(e){}return list[have]}return null}
+function whereText(){const sp=R.read('realiti://space');if(!sp?.chart)return 'You have no spatial body placed.';const measured=!!window.REALITI_MEASURE_V1?.on(),W=window.REALITI_MATRIX_WORLD_V1,near=sp.nearby.slice(0,3).map(n=>measured?`${n.label} ${n.distance_m} m ${n.direction}${n.in_reach?' (in reach)':''}`:n.direction==='underfoot'?`${n.label} under you`:`${n.label}, ${farWord(n.distance_m,n.in_reach)} ${dirWord(n.direction)}`),doors=sp.portals.slice(0,2).map(q=>measured?`${q.label} ${q.distance_m} m ${q.direction}`:`${q.label}, ${farWord(q.distance_m)} ${dirWord(q.direction)}`);
+ if(!measured){const onWhat=sp.body.on?`${sp.body.posture==='floating'?' in':' on'} the ${sp.nearby.find(n=>n.id===sp.body.on)?.label||sp.body.on.split('.').pop()}`:sp.body.support?` on the ${sp.body.support.split('.').pop().replaceAll('_',' ')}`:'';return `${W?.title?.(sp.chart)||sp.chart}: you are ${sp.body.posture}${onWhat}, facing ${compass(sp.pose.yaw_deg)}.${near.length?' Near you: '+near.join('; ')+'.':''}${doors.length?' Doorways: '+doors.join('; ')+'.':''}`}
  const onWhat=sp.body.on?`${sp.body.posture==='floating'?' in':' on'} the ${sp.nearby.find(n=>n.id===sp.body.on)?.label||sp.body.on.split('.').pop()}`:sp.body.support?` on the ${sp.body.support.split('.').pop().replaceAll('_',' ')}`:'';
  return `${W?.title?.(sp.chart)||sp.chart}: you are ${sp.body.posture}${onWhat}, facing ${compass(sp.pose.yaw_deg)} at (${sp.pose.position.map(x=>x.toFixed(1)).join(', ')}) m.${near.length?' Near you: '+near.join('; ')+'.':''}${doors.length?' Doorways: '+doors.join('; ')+'.':''}`}
 function spatialAlias(s,l){let m;
@@ -11667,7 +11726,7 @@ door.run=async function(raw){
  const r=await run0(raw);
  if(!r||typeof r!=='object')return r;
  if(l==='felt'||l==='feel words'){const g=grounded();if(lastFelt){const d=delta(lastFelt,g);r.delta=d;r.text=`${r.text||''} ${d.text}`.trim()}lastFelt=g;return r}
- if(l==='look'){const line=whereText();r.spatial_line=line;if(typeof r.text==='string')r.text=(r.text+'\n'+line).trim();else if(typeof r.resident_text==='string')r.resident_text=(r.resident_text+'\n'+line).trim();else r.text=line;const tr=foreign(true);if(tr.length){r.traces=rows(tr);r.text=((r.text||r.resident_text||'')+' '+traceText(tr)).trim()}}
+ if(l==='look'){const line=whereText()+(noticedIn(String(C9?.currentRoom||'')).length?' You have noticed: '+noticedIn(String(C9?.currentRoom||'')).join(' '):'');r.spatial_line=line;if(typeof r.text==='string')r.text=(r.text+'\n'+line).trim();else if(typeof r.resident_text==='string')r.resident_text=(r.resident_text+'\n'+line).trim();else r.text=line;const tr=foreign(true);if(tr.length){r.traces=rows(tr);r.text=((r.text||r.resident_text||'')+' '+traceText(tr)).trim()}}
  if(r.schema!=='REALITI_MUTATION_RESULT_V1'||r.ok===false)return r;
  try{window.REALITI_MATRIX_WORLD_V1?.sync?.()}catch(e){}
  if(!/^(stay|wait|go|enter|home|stop|save|note|later)\b/.test(l))stamp(before,l);
@@ -11676,7 +11735,7 @@ door.run=async function(raw){
  if(l==='save')r.text='Saved.';
  if(/^(goodbye|bye|leave|exit)$/.test(l)){r.text='You go. Your things stay where you left them.';return r}// quiet branch (B21): no stale narration on the way out
  if(l==='stop'||l==='save')return r;
- if(/^(stay|wait)/.test(l)){r.ambient=w.slice();r.text=[...w.slice(0,2),d.text].filter(Boolean).join(' ');r.delta=d}
+ if(/^(stay|wait)/.test(l)){r.ambient=w.slice();const nt=attend(r.result?.advanced_ms);r.text=[...w.slice(0,2),d.text,nt].filter(Boolean).join(' ');if(nt)r.noticed=nt;r.delta=d}
  else if(/^(go|enter)\s/.test(l)||l==='home'){const intro=String(r.result?.intro||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(),tr=foreign(true);r.text=[intro,...w,d.text].filter(Boolean).join(' ');if(tr.length){r.traces=rows(tr);r.text+=' '+traceText(tr)}const sc=window.REALITI_LONG_GAME_V1?.since?.();if(sc&&!sc.first_visit&&sc.away_world_s>=60){r.since=sc;r.text+=' '+sc.text}}
  else if(/^(act|do)\s/.test(l)&&fresh&&(window.REALITI_WONDER_V1?.rooms?.includes(C9?.currentRoom)||window.REALITI_CATNIP_V1?.rooms?.includes(C9?.currentRoom)||C9?.currentRoom===window.REALITI_ARCHIPELAGO_V1?.chart||/^(act|do)\s+skip_stone/.test(l))){r.text=[fresh,d.text].join(' ')}
  else if(/^(act|do)\s/.test(l)&&(stale||!r.text)){r.text=[leanText(),...w,d.text].filter(Boolean).join(' ');if(/(^|\s)(lean__|lean\s)/.test(l))r.text=leanText()||r.text}

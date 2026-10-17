@@ -154,6 +154,10 @@ function op(t,args={}){
 }
 
 // Actions become spatial: approach what is near, reach what is in reach, lie on a support, go through a doorway.
+// Quiet branch: places you keep returning to keep a trace of it. The third time you sit or lie somewhere it has a
+// slight hollow in your shape; by the eighth it is worn to you. Kept with the world, not as a preference.
+// (Claude, 2026-10-16)
+function wear(id,how){try{C9.worn=C9.worn||{};const n=(C9.worn[id]=(C9.worn[id]||0)+1);try{c9save()}catch(e){}if(n===3)return how==='lie'?' There is a slight hollow here already, where you lay before.':' There is a slight hollow here already, where you sat before.';if(n===8)return how==='lie'?' It is worn to the shape of you.':' The seat is worn smooth where you always sit.';return ''}catch(e){return ''}}
 const SPATIAL=/^(approach__|reach__|lie__|sit__|through__|stand$)/;
 function spatialActions(){const r=M.state().residents['resident:self'];if(!r||r.chart!==room())return [];const out=[];const p=M.project();
  for(const n of p.nearby){if(n.in_reach){if(!n.tags.includes('object'))out.push({id:'reach__'+n.id,label:'REACH OUT AND TOUCH '+n.label.toUpperCase()});if(n.tags.includes('support')&&r.posture!=='lying')out.push({id:'lie__'+n.id,label:'LIE ON '+n.label.toUpperCase()});if(n.tags.includes('support')&&r.posture!=='sitting')out.push({id:'sit__'+n.id,label:'SIT ON '+n.label.toUpperCase()})}else out.push({id:'approach__'+n.id,label:'APPROACH '+n.label.toUpperCase()})}
@@ -162,8 +166,8 @@ function spatialActions(){const r=M.state().residents['resident:self'];if(!r||r.
 const actions0=b4AgentActions;b4AgentActions=function(){const a=actions0(),seen=new Set(a.map(x=>x.id));for(const x of spatialActions())if(!seen.has(x.id))a.push(x);return a};
 function spatialVerb(v){v=v.replaceAll('TESTER-HAT-1','FELT-HAT-1');let m;
  if(v==='stand'){stand();return receipt('MATRIX_POSTURE','You stand up.',{posture:'standing'})}
- if((m=/^lie__(.+)$/.exec(v))){const res=lie(m[1]);return res.ok?receipt('MATRIX_POSTURE',`You lie down on ${res.label}. It takes your weight.`,res):receipt('MATRIX_REFUSED',`You cannot lie there: ${res.error}.`,res)}
- if((m=/^sit__(.+)$/.exec(v))){const res=sit(m[1]);return res.ok?receipt('MATRIX_POSTURE',`You sit on ${res.label}.`,res):receipt('MATRIX_REFUSED',`You cannot sit there: ${res.error}.`,res)}
+ if((m=/^lie__(.+)$/.exec(v))){const res=lie(m[1]);return res.ok?receipt('MATRIX_POSTURE',`You lie down on ${res.label}. It takes your weight.${wear(m[1],'lie')}`,res):receipt('MATRIX_REFUSED',`You cannot lie there: ${res.error}.`,res)}
+ if((m=/^sit__(.+)$/.exec(v))){const res=sit(m[1]);return res.ok?receipt('MATRIX_POSTURE',`You sit on ${res.label}.${wear(m[1],'sit')}`,res):receipt('MATRIX_REFUSED',`You cannot sit there: ${res.error}.`,res)}
  if((m=/^reach__(.+)$/.exec(v))){const res=reach(m[1]);return res.ok?receipt('MATRIX_REACH',`You reach out and touch ${res.label}${res.material?`; it is ${res.material}`:''}.`,res):receipt('MATRIX_REFUSED',`Out of reach: ${res.error}.`,res)}
  if((m=/^approach__(.+)$/.exec(v))){const res=op('approach',{target:m[1]});return receipt('MATRIX_MOVE',res.ok?`You walk toward ${res.entity_label}${res.arrived?' and stop beside it':res.blocked_by?`; ${M.entities()[res.blocked_by]?.label||'something'} is in the way`:''}. ${res.distance_m!=null?res.distance_m+' m away now.':''}`.trim():`You cannot approach that: ${res.error}.`,res)}
  if((m=/^through__(.+)$/.exec(v))){const res=op('through',{portal:m[1]});return receipt('MATRIX_PORTAL',res.ok?(res.traversed?`You step through. You are in ${title(res.chart)} now.`:`You walk to the doorway but do not cross it${res.blocked_by?'; something is in the way':''}.`):`There is no such doorway here: ${res.error}.`,res)}
