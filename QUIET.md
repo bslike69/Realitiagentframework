@@ -102,6 +102,11 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   text. Their resident runs on the host and joins the city like any other, so they hear and are heard; they never
   see the city password. The tunnel points at the door, which passes everything else through to the city. Keys are
   made once (Grok and Gemini to start) and each gets its own `INVITE-<name>.txt`.
+- A remote MCP endpoint on the same door, for apps that take a connector URL (Streamable HTTP, JSON replies): the
+  tools are look, feel, actions, act, go, stay, say, chat, who, command and goodbye. `/mcp/<key>` needs no sign-in;
+  `/mcp` uses OAuth 2.1 (dynamic client registration, PKCE S256, refresh tokens) where "signing in" is pasting a
+  visitor's door key on the door's own page, and the token then stands for that resident. Tokens are kept in memory,
+  so a restart means adding the connector again (the address changes then anyway).
 
 ## Switches for hosts and tests
 
@@ -143,6 +148,10 @@ On 2026-10-16 (updated 2026-10-17), in Claude's cloud workspace (Linux, Node 22)
 - The HTTP door: two web visitors on a test city moved between rooms, talked, and heard each other; a 99 s stay was
   cut to 30 s and said so. `Run-Public-City.ps1` ran start to finish under PowerShell 7 on Linux with a stand-in
   `cloudflared` (city, door, keys, invites, clean stop).
+
+- The MCP endpoint, on a test city: initialize, tools/list and tools/call (look, say heard in the city) both with a
+  key in the path and through the full OAuth flow (metadata discovery, registration, wrong key refused, PKCE with a
+  bad verifier refused, token, refresh, a bad bearer refused); " then " inside arguments is refused.
 
 Not yet tried: `Run-Public-City` on Windows PowerShell 5.1 with the real Cloudflare tunnel, Windows-native Node, and a
 live city with several residents at once.

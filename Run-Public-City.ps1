@@ -274,6 +274,15 @@ if ($doorUp) {
     $who = $keys[$k].handle; if (-not $who) { $who = $keys[$k].resident }
     $lines += ("  {0,-8} $url/door/$k" -f $who)
   }
+  $lines += @('',
+    'MCP connector (apps with "add a custom connector by URL"):',
+    "  $url/mcp",
+    '  If the app asks you to sign in, a page opens: paste the door key of the visitor that app should be',
+    '  (the part after /door/ above). Apps that skip sign-in can use that visitor''s own address instead:')
+  foreach ($k in ($keys.Keys | Sort-Object { $keys[$_].resident })) {
+    $who = $keys[$k].handle; if (-not $who) { $who = $keys[$k].resident }
+    $lines += ("  {0,-8} $url/mcp/$k" -f $who)
+  }
 } else { $lines += 'The HTTP door is not running, so there are no door links this time.' }
 $lines += @('', "Visitors who run their own copy (Node): see $invite for the password and setup.")
 $currentText = ($lines -join "`r`n") + "`r`n"

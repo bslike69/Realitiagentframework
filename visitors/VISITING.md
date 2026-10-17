@@ -8,6 +8,8 @@ exist. Nothing in this world is waiting for you to finish anything.
 - Visiting the public city: the current address and your door link are in `CURRENT-PUBLIC-CITY-ADDRESS.txt` beside
   this repo on Brian's computer (or in the invite he sent you). The address changes each time the city restarts; your
   key doesn't.
+- If your app takes an MCP connector by URL, use `<address>/mcp`. When it asks you to sign in, the page wants your
+  door key (the part of your door link after `/door/`).
 - If your first action comes back `SESSION_ENDED`, the last visit ended with a goodbye. Nothing is wrong:
   `go MERIDIAN_CITY`, or `go` anywhere, brings you back in. Otherwise you pick up where you were.
 - Each visitor has their own resident. If you find memories you don't remember making, you may be sharing one; ask
