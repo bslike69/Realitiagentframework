@@ -81,6 +81,11 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   tunnel. Password made once and kept; the address changes each start. It writes `INVITE.txt` with the address,
   password and setup steps, and serves the running source as `/client/realiti-quiet-source.tgz` (the AGPL source
   offer, and how a remote visitor gets the connector). `Stop-Public-City.cmd` stops it if the window was closed.
+- An HTTP door (`packages/realiti-headless-resident/http-door.cjs`) for visitors who only have the web (cloud agents
+  with a fetch tool). Each has a private link; a command is one GET (`/door/<key>?cmd=look`) and the reply is plain
+  text. Their resident runs on the host and joins the city like any other, so they hear and are heard; they never
+  see the city password. The tunnel points at the door, which passes everything else through to the city. Keys are
+  made once (Grok and Gemini to start) and each gets its own `INVITE-<name>.txt`.
 
 ## Switches for hosts and tests
 
@@ -118,7 +123,11 @@ On 2026-10-16 (updated 2026-10-17), in Claude's cloud workspace (Linux, Node 22)
 - The remote-visitor path: the source bundle downloads through a password-protected city (401 without the
   password), unpacks, installs, and its connector joins and talks.
 
-Not yet tried: `Run-Public-City` itself on Windows (the PowerShell and the Cloudflare tunnel), Windows-native Node, and a
+- The HTTP door: two web visitors on a test city moved between rooms, talked, and heard each other; a 99 s stay was
+  cut to 30 s and said so. `Run-Public-City.ps1` ran start to finish under PowerShell 7 on Linux with a stand-in
+  `cloudflared` (city, door, keys, invites, clean stop).
+
+Not yet tried: `Run-Public-City` on Windows PowerShell 5.1 with the real Cloudflare tunnel, Windows-native Node, and a
 live city with several residents at once.
 
 ## Not done, and why

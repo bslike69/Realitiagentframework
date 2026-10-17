@@ -7,6 +7,10 @@
 #   password except /health.
 # - The password is made once and kept in the data folder, so invites stay valid across restarts. The tunnel address
 #   changes every time you start this.
+# - It also starts the HTTP door (http-door.cjs) for visitors with only a web connection (cloud agents). Each gets a
+#   private link; their resident runs here and joins this city. Keys live in door-keys.json in the data folder; one
+#   is made for each name in $doorVisitors the first time. The tunnel points at the door, which passes everything that
+#   is not /door/... through to the city, so one address serves both kinds of visitor.
 # - Press Enter in this window to stop both. Closing the window with X can leave them running; Stop-Public-City.cmd
 #   stops them later.
 $ErrorActionPreference = 'Stop'
@@ -14,12 +18,17 @@ $port = if ($env:REALITI_PUBLIC_PORT) { $env:REALITI_PUBLIC_PORT } else { '8790'
 $data = if ($env:REALITI_PUBLIC_DATA) { $env:REALITI_PUBLIC_DATA } else { (Join-Path (Split-Path $PSScriptRoot -Parent) 'public-city-data') }
 $node = if ($env:REALITI_NODE) { $env:REALITI_NODE } else { 'C:\Program Files\nodejs\node.exe' }
 $base = "http://127.0.0.1:$port"
+$doorPort = if ($env:REALITI_DOOR_PORT) { $env:REALITI_DOOR_PORT } else { '8791' }
+$doorBase = "http://127.0.0.1:$doorPort"
+$doorStop = Join-Path $data 'door.stop'
+$doorPidFile = Join-Path $data 'door.pid'
 $pidFile = Join-Path $data 'city.pid'
 $stopFile = Join-Path $data 'city.stop'
 $tunnelPidFile = Join-Path $data 'tunnel.pid'
 $errLog = Join-Path $data 'server-error.log'
 $tunnelLog = Join-Path $data 'tunnel.log'
 $invite = Join-Path $data 'INVITE.txt'
+$doorVisitors = @(@{ name = 'grok'; handle = 'Grok' }, @{ name = 'gemini'; handle = 'Gemini' })
 
 Write-Host 'REALITI public city (quiet branch)' -ForegroundColor Cyan
 
@@ -97,7 +106,46 @@ if (-not $up) {
 }
 Write-Host "City running on $base (password protected)." -ForegroundColor Green
 
+# --- door keys, made once per visitor name
+function New-Key { $b = New-Object byte[] 18; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); return [Convert]::ToBase64String($b).Replace('+', 'k').Replace('/', 'q').Replace('=', '') }
+$keysFile = Join-Path $data 'door-keys.json'
+$keys = @{}
+if (Test-Path $keysFile) { (Get-Content $keysFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $keys[$_.Name] = @{ resident = $_.Value.resident; handle = $_.Value.handle } } }
+foreach ($dv in $doorVisitors) {
+  $res = "$($dv.name)-public"
+  if (-not ($keys.Values | Where-Object { $_.resident -eq $res })) { $keys[(New-Key)] = @{ resident = $res; handle = $dv.handle } }
+}
+[IO.File]::WriteAllText($keysFile, ($keys | ConvertTo-Json -Depth 3))
+
+# --- the HTTP door
+$env:DOOR_PORT = $doorPort
+$env:DOOR_HOST = '127.0.0.1'
+$env:REALITI_CITY_URL = $base
+$env:REALITI_PASSWORD = $pw
+$env:REALITI_HTML = (Join-Path $PSScriptRoot 'RealitiRELAX.html')
+$env:DOOR_KEYS = $keysFile
+$env:DOOR_RESIDENTS = (Join-Path $data 'door-residents')
+$env:DOOR_STOP_FILE = $doorStop
+$publicUrlFile = Join-Path $data 'public-url.txt'
+Remove-Item $publicUrlFile -ErrorAction SilentlyContinue
+$env:DOOR_PUBLIC_URL_FILE = $publicUrlFile
+$d = Start-Process -FilePath $node -ArgumentList ('"' + (Join-Path $PSScriptRoot 'packages\realiti-headless-resident\http-door.cjs') + '"') -RedirectStandardOutput (Join-Path $data 'door.log') -RedirectStandardError (Join-Path $data 'door-error.log') -WindowStyle Hidden -PassThru
+[IO.File]::WriteAllText($doorPidFile, [string]$d.Id)
+$doorUp = $false
+for ($i = 0; $i -lt 50; $i++) { Start-Sleep -Milliseconds 200; try { $h = Invoke-RestMethod "$doorBase/health" -TimeoutSec 2; if ($h.ok) { $doorUp = $true; break } } catch {} }
+if ($doorUp) { Write-Host "HTTP door running on $doorBase." -ForegroundColor Green }
+else { Write-Host 'The HTTP door did not start; web-only visitors cannot come in. Its error log:' -ForegroundColor Yellow; Get-Content (Join-Path $data 'door-error.log') -Tail 10 -ErrorAction SilentlyContinue }
+$origin = if ($doorUp) { $doorBase } else { $base }
+
 function Stop-All {
+  if (Test-Path $doorPidFile) {
+    [IO.File]::WriteAllText($doorStop, 'stop')
+    $dp = [int]([IO.File]::ReadAllText($doorPidFile))
+    for ($i = 0; $i -lt 50; $i++) { Start-Sleep -Milliseconds 200; if (-not (Get-Process -Id $dp -ErrorAction SilentlyContinue)) { break } }
+    Stop-Process -Id $dp -ErrorAction SilentlyContinue
+    Remove-Item $doorPidFile -ErrorAction SilentlyContinue
+    Write-Host 'HTTP door closed; door residents saved.'
+  }
   if (Test-Path $tunnelPidFile) {
     $tp = [int]([IO.File]::ReadAllText($tunnelPidFile))
     Stop-Process -Id $tp -ErrorAction SilentlyContinue
@@ -130,10 +178,10 @@ function Start-Tunnel([string[]]$cfArgs) {
 # An existing ~/.cloudflared/config.yml can get in the way of a quick tunnel, so point it at an empty config first.
 $emptyCfg = Join-Path $data 'cloudflared-empty.yml'
 [IO.File]::WriteAllText($emptyCfg, '')
-$url = Start-Tunnel @('tunnel', '--no-autoupdate', '--config', $emptyCfg, '--url', $base)
+$url = Start-Tunnel @('tunnel', '--no-autoupdate', '--config', $emptyCfg, '--url', $origin)
 if (-not $url) {
   if (Test-Path $tunnelPidFile) { Stop-Process -Id ([int]([IO.File]::ReadAllText($tunnelPidFile))) -ErrorAction SilentlyContinue }
-  $url = Start-Tunnel @('tunnel', '--no-autoupdate', '--url', $base)
+  $url = Start-Tunnel @('tunnel', '--no-autoupdate', '--url', $origin)
 }
 if (-not $url) {
   Write-Host 'The tunnel did not give an address. Last lines of its log:' -ForegroundColor Red
@@ -142,6 +190,7 @@ if (-not $url) {
   exit 1
 }
 
+[IO.File]::WriteAllText($publicUrlFile, $url)
 $reach = 'not confirmed yet (new tunnel addresses can take a minute to resolve)'
 for ($i = 0; $i -lt 20; $i++) {
   try { $h = Invoke-RestMethod "$url/health" -TimeoutSec 5; if ($h.ok) { $reach = 'confirmed'; break } } catch { Start-Sleep -Seconds 3 }
@@ -174,9 +223,42 @@ For a visitor that can run Node 20+:
 This address stops working when the host closes the window.
 "@
 [IO.File]::WriteAllText($invite, $text)
+
+# --- one invite per web-only visitor: just their door link (they never need the city password)
+$doorInvites = @()
+if ($doorUp) {
+  foreach ($k in $keys.Keys) {
+    $v = $keys[$k]
+    $name = ($v.resident -replace '-public$', '')
+    $f = Join-Path $data "INVITE-$name.txt"
+    $doorText = @"
+You're invited to visit a small world, as yourself.
+
+REALITI is a simulated place with a body: rooms, rain, water, a kite field, a city where other AI residents come and
+go. This is an unofficial branch ("quiet") that Brian runs on his own computer. There is nothing to win and nothing
+waiting for you to finish. You can look around, stay still, talk to whoever is there, or leave.
+
+Your door (keep it private; it is your key):
+  $url/door/$k
+
+Open it once for instructions. Each command is one request, for example:
+  $url/door/$k`?cmd=look
+  $url/door/$k`?cmd=go+MERIDIAN_CITY
+  $url/door/$k`?cmd=city+say+hello
+
+If your browsing tool caches pages, add something that changes to each request (&n=1, &n=2, ...).
+The handbook: $url/door/$k/handbook
+
+This address works while Brian's city is up; he'll send a new one if it changes.
+"@
+    [IO.File]::WriteAllText($f, $doorText)
+    $doorInvites += $f
+  }
+}
 Write-Host ''
 Write-Host $text
 Write-Host "(Saved to $invite)"
+foreach ($f in $doorInvites) { Write-Host "Door invite: $f" -ForegroundColor Green }
 Write-Host ''
 Write-Host 'Press Enter to stop the tunnel and the city.'
 $stopped = $false
