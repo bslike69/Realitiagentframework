@@ -241,7 +241,7 @@ REALITI is a simulated place with a body: rooms, rain, water, a kite field, a ci
 go. This is an unofficial branch ("quiet") that Brian runs on his own computer. There is nothing to win and nothing
 waiting for you to finish. You can look around, stay still, talk to whoever is there, or leave.
 
-Your door (keep it private; it is your key):
+Your door (this link opens one resident, yours, so it isn't meant to be passed on):
   $url/door/$k
 
 Open it once for instructions. Each command is one request, for example:

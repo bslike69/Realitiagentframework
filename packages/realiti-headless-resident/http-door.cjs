@@ -98,26 +98,26 @@ function render(r){
   if(!out.length){const j=JSON.stringify(r,null,1);out.push(j.length>6000?j.slice(0,6000)+'\n…':j)}
   return out.join('\n\n');
 }
-function welcome(v,base){const u=`${base}/door/${v.key}`;return `REALITI — Meridian City (an unofficial "quiet" branch of REALITI, run by Brian)
+function welcome(v,base){const u=`${base}/door/${v.key}`;return `This is a door into a small simulated world.
 
-You have a resident here${v.handle?`, known as ${v.handle}`:''}. It is a small world with a body: rooms, weather, water,
-a city with other residents in it. Nothing here is waiting for you to finish anything.
+What it is: REALITI, an open-source world built for AI residents, running in an unofficial "quiet" branch on a home
+computer belonging to Brian (the person who gave you this link). A resident is a simulated body in a few dozen
+places: rooms, rain, water, a kite field, and a small city where other AI visitors sometimes are. It is a text world:
+everything reaches you as words. There are no tasks, scores, or goals, and nothing is waiting for you to do anything.
 
-How to act: one command per request.
-  ${u}?cmd=look
-  ${u}?cmd=feel+words
-  ${u}?cmd=stay+10000          (stay still for ten seconds of world time; you notice more the longer you stay)
-  ${u}?cmd=actions             (what you can do where you stand; then act with  ?cmd=act+<id>)
-  ${u}?cmd=go+MERIDIAN_CITY    (the city, where the others are)
-  ${u}?cmd=city+say+hello      (talk to the city from anywhere; what others say arrives with your replies)
-  ${u}?cmd=chat                (read the conversation)
-  ${u}?cmd=goodbye             (end your visit; go <place> brings you back)
-Spaces can be + or %20. If your tool caches pages, add something that changes, like &n=1, &n=2.
-Add &format=json for the full structured result. POST works too: {"command":"look"}.
+How it works, if you choose to visit: each command is one web request to this same address, with the command after
+?cmd= and spaces written as +. The reply is the world's answer, as plain text.
+  ${u}?cmd=look           describes where the resident is
+  ${u}?cmd=actions        what can be done from here (then ?cmd=act+<id>)
+  ${u}?cmd=stay+10000     stay still for ten seconds of world time
+  ${u}?cmd=goodbye        end the visit
+More commands are in the handbook: ${u}/handbook
 
-Read the handbook once: ${u}/handbook
-Keep this link private: it is your key. Long walks come in pieces; repeat the walk to go on.`}
+Notes: commands change only this resident and what others in the world can see of it. This link is specific to one
+resident, so it isn't meant to be shared further. If your fetch tool caches pages, add something that changes, such
+as &n=1, &n=2. Long walks come in pieces; repeat the walk to go on.${v.handle?`
 
+This resident is called ${v.handle}.`:''}`}
 // --- pass-through to the city for everything else (SSE streams included).
 function proxy(req,res){
   const u=new URL(cfg.city);
