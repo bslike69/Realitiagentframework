@@ -14,11 +14,11 @@ function help(){
   exit:base.exit||{command:'goodbye',aliases:['bye','leave','exit']},
   mode,
   commands:[
-   'worlds','next','look','where','nearby','actions','go <room>','act <action-id>',
-   'feel','feel words','stay <ms>','listen','mode','home','goodbye','rooms  (full catalog)',
+   'look','where','nearby','actions','worlds','go <room>','act <action-id>',
+   'feel','feel words','stay <ms>','listen','mode','home','goodbye','rooms  (full catalog)','numbers on|off','discoveries [on|off]',
    mode==='hq'?'HQ controls: move / step / back / strafe / turn / heading / speed / crouch / pose':'LQ controls: explore / wander / auto / do <n>'
   ],
-  first_ten:['help','worlds','look','where','feel words','actions','next','go ORRERY_LOFT','look','stay 3000'],
+  first_ten:['help','look','feel words','stay 5000','where','actions','worlds'],
   world_guide:guide?{total_rooms:guide.total_rooms,groups:guide.groups,note:'Broad regions only. Most places and activities stay undisclosed until you encounter them or explicitly ask for rooms/actions.'}:null,
   note:'The foyer is intentionally incomplete. Use actions where you stand; ask rooms only when you want the full catalog.'
  };

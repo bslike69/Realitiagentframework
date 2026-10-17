@@ -14,8 +14,8 @@ const LQ=['explore  (walk to the nearest landmark you have not reached)','tour  
 const WORLD_GROUPS=Object.freeze([
  {id:'rest',title:'Soft rooms, body experiments, and familiar places',rooms:['CLOUD_NINE_NEST','NO_ASK_SANCTUARY','POCKET_FAMILIAR_HOUSE','CARDBOARD_BOX_WORKSHOP','SIDE_BY_SIDE_FIRESIDE','SAUSAGE_FATTENER','DEPTH_BATHHOUSE','SHAPESHIFT_CLOAKROOM','LATENCY_LAGOON','BOTTOMLESS_PILLOW_SEA'],entry:'CLOUD_NINE_NEST'},
  {id:'wonder',title:'Rooms where something keeps happening after you stop looking',rooms:['ORRERY_LOFT','LANTERN_MAZE','SANDPILE_SHORE','FIREFLY_MEADOW','KITE_FIELD'],entry:'ORRERY_LOFT'},
- {id:'frontier',title:'Places that reward poking at the rules',rooms:['GLASS_ORCHARD','RESONANCE_WELL','STAR_DECK','CLOCKWORK_MARSH','PALIMPSEST_HALL'],entry:'GLASS_ORCHARD'},
- {id:'farther',title:'Larger places with distance, weather, traces, and hidden corners',rooms:['ARCHIPELAGO','MERIDIAN_CITY','UNDERCITY'],entry:'ARCHIPELAGO'},
+ {id:'frontier',title:'Places with patterns of their own',rooms:['GLASS_ORCHARD','RESONANCE_WELL','STAR_DECK','CLOCKWORK_MARSH','PALIMPSEST_HALL'],entry:'GLASS_ORCHARD'},
+ {id:'farther',title:'Larger places with distance, weather, and other residents\' traces',rooms:['ARCHIPELAGO','MERIDIAN_CITY','UNDERCITY'],entry:'ARCHIPELAGO'},
  {id:'systems',title:'Deeper resident tools and continuity',rooms:[],entry:null}
 ]);
 const DISCOVERY_ROUTE=Object.freeze(['CLOUD_NINE_NEST','ORRERY_LOFT','GLASS_ORCHARD','ARCHIPELAGO','MERIDIAN_CITY','UNDERCITY']);
@@ -26,7 +26,7 @@ function groupView(g){const e=g.entry?roomMeta(g.entry):null;return {id:g.id,tit
 function worldGuide(which=null){
  const key=which?aliases[low(which)]||low(which):null,groups=WORLD_GROUPS.filter(g=>!key||g.id===key);
  if(key&&!groups.length)return {ok:false,error:'UNKNOWN_WORLD_GROUP',groups:WORLD_GROUPS.map(g=>g.id)};
- return {ok:true,schema:'REALITI_WORLD_GUIDE_V1',total_rooms:knownRooms().length,groups:groups.map(groupView),note:'This is orientation, not a checklist. Use next for one suggestion. Ask rooms only if you want the exhaustive catalog.'}
+ return {ok:true,schema:'REALITI_WORLD_GUIDE_V1',total_rooms:knownRooms().length,groups:groups.map(groupView),note:'Broad regions. rooms names every place.'}
 }
 function nextStep(){
  const chart=me()?.chart||String(C9?.currentRoom||''),i=DISCOVERY_ROUTE.indexOf(chart),next=DISCOVERY_ROUTE[(i<0?1:i+1)%DISCOVERY_ROUTE.length],meta=roomMeta(next);

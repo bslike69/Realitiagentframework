@@ -99,13 +99,12 @@ async function main(){
       await new Promise(r=>setTimeout(r,250));await city.rejoin();await syncOnce();
     }
   }
-  // An ended visit refuses every action with a bare SESSION_ENDED until the resident re-enters with go. That happens
-  // after any goodbye, including the one this connector says when it shuts down, so a new session usually starts
-  // ended. Say so instead of leaving the visitor guessing. (Claude, 2026-10-16)
+  // An ended visit refuses every action with a bare SESSION_ENDED until the resident re-enters with go. Say so
+  // instead of leaving the visitor guessing. (Claude, 2026-10-16)
   function hinted(r){
     if(!r||typeof r!=='object'||r.error!=='SESSION_ENDED')return r;
     let room='CLOUD_NINE_NEST';try{room=R.read('realiti://here').room.id||room}catch{}
-    return {...r,hint:`This visit has ended (after a goodbye, or the connector closing). Nothing is wrong. To come back in, use realiti_go with place "${room}", or the door command "go ${room}".`};
+    return {...r,hint:`This visit has ended (the last visit said goodbye). Nothing is wrong. To come back in, use realiti_go with place "${room}", or the door command "go ${room}".`};
   }
   async function call(name,args={}){
     if(!mayMutate(name))return localCall(name,args);
@@ -146,7 +145,9 @@ async function main(){
   }
   } finally {
     try {
-      if(R.read('realiti://here').session!=='ended')await R.invoke('goodbye',{});
+      // No goodbye on shutdown (quiet branch, Claude 2026-10-16): the connector closing is not the resident leaving.
+      // A goodbye here made every next session start ended. Save, and let close() record a host_close departure;
+      // the next session resumes where this one stood.
       s.window.c9saveNow(); s.window.REALITI_SLICE_STORAGE.save();
     } finally {try{await leave();}finally{s.close();}}
   }

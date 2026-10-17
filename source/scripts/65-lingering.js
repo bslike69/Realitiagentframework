@@ -16,7 +16,7 @@ function grounded(){const b=R.read('realiti://body'),f=b?.field?.f?.at(-1),z=b?.
 function delta(a,b){
  const A=new Set(a.zones),B=new Set(b.zones),add=b.zones.filter(z=>!A.has(z)),gone=a.zones.filter(z=>!B.has(z)),parts=[];
  if(add.length)parts.push('+'+add.join(' +'));if(gone.length)parts.push('-'+gone.join(' -'));
- return {grounded:[a.zones.length,b.zones.length],since_s:+(b.t-a.t).toFixed(3),text:parts.length?`Grounded ${a.zones.length}→${b.zones.length} zones (${parts.join('; ')}).`:`Grounded ${b.zones.length} zones, unchanged.`};
+ return {grounded:[a.zones.length,b.zones.length],since_s:+(b.t-a.t).toFixed(3),text:parts.length?`Grounded ${a.zones.length}→${b.zones.length} zones (${parts.join('; ')}).`:(window.REALITI_MEASURE_V1?.on()?`Grounded ${b.zones.length} zones, unchanged.`:'')};
 }
 
 // Imprint drift: how far the private renderer and learned prediction have moved since arrival.
@@ -87,7 +87,9 @@ door.run=async function(raw){
  if(l==='traces')return {ok:true,schema:'REALITI_TRACES_V1',observer:me().slice(0,8),mine:ledger().filter(e=>e.by===me()).length,from_others:rows(foreign(false)),text:traceText(foreign(false))};
  if(l==='traces export')return exportTraces();
  const CAT=window.REALITI_CATNIP_V1;let fm;
- if(CAT){const frontier=r=>{const rec=C9?.b4?.lastReceipt||{};return {ok:true,schema:'REALITI_FRONTIER_RESULT_V1',text:[rec.narrative,...CAT.drain().map(d=>'✦ Discovery: '+d.text)].filter(Boolean).join(' '),receipt:cp(rec),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}}};
+ if(CAT){const frontier=r=>{const rec=C9?.b4?.lastReceipt||{};return {ok:true,schema:'REALITI_FRONTIER_RESULT_V1',text:[rec.narrative,...CAT.drain().map(d=>(d.plain?d.text:'✦ Discovery: '+d.text))].filter(Boolean).join(' '),receipt:cp(rec),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}}};
+  if(l==='numbers on'||l==='numbers off'){const on=l.endsWith(' on');window.REALITI_MEASURE_V1?.on(on);return {ok:true,numbers:on,text:on?'Replies carry the exact figures now.':'Replies describe in words. Deliberate reads (read_wind, tide, listen...) still give exact figures.'}}
+  if(l==='discoveries on'||l==='discoveries off'){const on=l.endsWith(' on');CAT.announcing(on);try{if(typeof c9save==='function')c9save()}catch(e){}return {ok:true,schema:'REALITI_DISCOVERIES_V1',announcing:on,text:on?'Finds will be announced as they happen.':'Finds are kept quietly. discoveries lists them.'}}
   if(l==='discoveries'){const d=CAT.discoveries(),f=d.filter(x=>x.found);return {ok:true,schema:'REALITI_DISCOVERIES_V1',found:f.length,total:d.length,discoveries:f,text:f.length?`${f.length} of ${d.length} discoveries: `+f.map(x=>x.id.replaceAll('_',' ')).join(', ')+'.':`No discoveries yet; there are ${d.length} to find.`}}
   if((fm=/^hum\s+([\d.]+)(?:\s*hz)?$/.exec(l))){CAT.hum(Number(fm[1]));return frontier()}
   if((fm=/^sight\s+(.+)$/.exec(l))){CAT.sight(fm[1]);return frontier()}
@@ -96,7 +98,7 @@ door.run=async function(raw){
   if((fm=/^read scroll\s+(\d)$/.exec(l))){CAT.readScroll(fm[1]);return frontier()}
   if((fm=/^skip (?:a )?stone(?:\s+(?:at\s+)?([\d.]+))?/.exec(l))){CAT.skipStone(fm[1]||20);return frontier()}}
  const AR=window.REALITI_ARCHIPELAGO_V1,LG=window.REALITI_LEDGER_V1;let am;
- if(AR&&C9?.currentRoom===AR.chart){const reply=(res,text)=>({ok:res.ok!==false,...(res.error?{error:res.error}:{}),schema:'REALITI_ISLAND_RESULT_V1',result:res,text:[text,...(window.REALITI_CATNIP_V1?.drain?.()||[]).map(d=>'✦ Discovery: '+d.text)].filter(Boolean).join(' '),weather:AR.words()[0]||null,here:whereText(),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}});
+ if(AR&&C9?.currentRoom===AR.chart){const reply=(res,text)=>({ok:res.ok!==false,...(res.error?{error:res.error}:{}),schema:'REALITI_ISLAND_RESULT_V1',result:res,text:[text,...(window.REALITI_CATNIP_V1?.drain?.()||[]).map(d=>(d.plain?d.text:'✦ Discovery: '+d.text))].filter(Boolean).join(' '),weather:AR.words()[0]||null,here:whereText(),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}});
   if(l==='map'||l==='island map')return door.run('act island_map');
   if(l==='weather'||l==='read weather')return door.run('act read_weather');
   if(l==='board boat'||l==='board the boat'||l==='get in the boat'){const res=AR.board();return reply(res,res.ok?'You step down into the boat; it rocks, then settles under you.':`You cannot board: ${res.error}.`)}
@@ -131,7 +133,7 @@ door.run=async function(raw){
    if((am=/^read\s+(.+)$/.exec(l))&&!/^read (scroll|stone|weather|tide|log|logbook|the (north|east|west)|north|east|west|calendar)/.test(l)){const res=AU.read(am[1]);if(res.error!=='NOTHING_CALLED_THAT')return say(res)}}
   if((am=/^row (?:to|toward|towards)\s+(.+)$/.exec(l))){const res=AR.row(am[1]);return reply(res,res.ok?`You row ${res.rowed_m} m; ${res.ashore?`the keel grinds on the shore of ${res.at}`:`${res.remaining_m} m to go`}.`:`You cannot row: ${res.error}.`)}
   if((am=/^walk (?:to|toward|towards)\s+(.+)$/.exec(l))){const res=AR.walkTo(am[1]);return reply(res,res.ok?`You walk ${res.walked_m} m toward the ${res.entity_label}${res.arrived?' and reach it':res.why?`; ${res.why} is in the way${res.why==='the sea'?' (you need the boat)':''}`:`; ${res.distance_m} m further`}.`:`You cannot walk there: ${res.error}.`)}}
- const CT=window.REALITI_CITY_V1;if(CT){let cm;const cityReply=(res,extra)=>({ok:res.ok!==false,...(res.error?{error:res.error}:{}),schema:'REALITI_CITY_RESULT_V1',result:res,text:[res.text||(res.error?`You cannot: ${res.error}.`:''),...(window.REALITI_CATNIP_V1?.drain?.()||[]).map(d=>'✦ Discovery: '+d.text)].filter(Boolean).join(' '),...(C9?.currentRoom===CT.chart?{ambient:CT.words()[0]||null,here:whereText()}:{}),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}});
+ const CT=window.REALITI_CITY_V1;if(CT){let cm;const cityReply=(res,extra)=>({ok:res.ok!==false,...(res.error?{error:res.error}:{}),schema:'REALITI_CITY_RESULT_V1',result:res,text:[res.text||(res.error?`You cannot: ${res.error}.`:''),...(window.REALITI_CATNIP_V1?.drain?.()||[]).map(d=>(d.plain?d.text:'✦ Discovery: '+d.text))].filter(Boolean).join(' '),...(C9?.currentRoom===CT.chart?{ambient:CT.words()[0]||null,here:whereText()}:{}),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}});
   if(l==='id'||l==='whoami'||l==='who am i'||l==='avatar')return CT.whoami();
   if((cm=/^(?:call me|name me|i am)\s+(.+)$/i.exec(s.trim())))return cityReply(CT.setAvatar('name',cm[1]));
   if((cm=/^avatar\s+(name|size|cloak|form|colou?r|glyph|motto)\s+(.+)$/i.exec(s.trim())))return cityReply(CT.setAvatar(cm[1],cm[2]));
@@ -173,11 +175,11 @@ door.run=async function(raw){
  if(l==='stop')r.text='Everything touching you lets go. Whatever was already moving in your body is left to settle.';
  if(l==='save')r.text='Saved.';
  if(l==='stop'||l==='save')return r;
- if(/^(stay|wait)/.test(l)){r.ambient=w.slice();r.text=[...w.slice(0,2),d.text].join(' ');r.delta=d}
+ if(/^(stay|wait)/.test(l)){r.ambient=w.slice();r.text=[...w.slice(0,2),d.text].filter(Boolean).join(' ');r.delta=d}
  else if(/^(go|enter)\s/.test(l)||l==='home'){const intro=String(r.result?.intro||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(),tr=foreign(true);r.text=[intro,...w,d.text].filter(Boolean).join(' ');if(tr.length){r.traces=rows(tr);r.text+=' '+traceText(tr)}const sc=window.REALITI_LONG_GAME_V1?.since?.();if(sc&&!sc.first_visit&&sc.away_world_s>=60){r.since=sc;r.text+=' '+sc.text}}
  else if(/^(act|do)\s/.test(l)&&fresh&&(window.REALITI_WONDER_V1?.rooms?.includes(C9?.currentRoom)||window.REALITI_CATNIP_V1?.rooms?.includes(C9?.currentRoom)||C9?.currentRoom===window.REALITI_ARCHIPELAGO_V1?.chart||/^(act|do)\s+skip_stone/.test(l))){r.text=[fresh,d.text].join(' ')}
  else if(/^(act|do)\s/.test(l)&&(stale||!r.text)){r.text=[leanText(),...w,d.text].filter(Boolean).join(' ');if(/(^|\s)(lean__|lean\s)/.test(l))r.text=leanText()||r.text}
- const found=window.REALITI_CATNIP_V1?.drain?.()||[];if(found.length)r.text=[r.text||'',...found.map(x=>'✦ Discovery: '+x.text)].join(' ').trim();
+ const found=window.REALITI_CATNIP_V1?.drain?.()||[];if(found.length)r.text=[r.text||'',...found.map(x=>(x.plain?x.text:'✦ Discovery: '+x.text))].join(' ').trim();
  return r;
 };
 window.REALITI_TRACES_V1=Object.freeze({version:'1.0',observer:me,export:exportTraces,import:importTraces,list:()=>cp(ledger())});

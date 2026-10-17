@@ -27,7 +27,19 @@ const DISCOVERIES={
 function found(){const w=W();w.found=w.found||{};return w.found}
 let pending=[];
 function discover(id){if(!DISCOVERIES[id]||found()[id])return false;found()[id]={t:+now().toFixed(3),room:room()};pending.push({id,text:DISCOVERIES[id]});try{c9save()}catch(e){}return true}
-const drain=()=>{const p=pending;pending=[];return p};
+// Announcements (quiet branch): a find is always recorded and listed by `discoveries`, but announcing it is a
+// presentation choice. By default nothing is announced. A few finds are themselves world events that no other reply
+// mentions (the coin on the well rim, the glass bird); those still arrive, as plain sentences without the ✦ label.
+// `discoveries on` restores the original announcements. Stored with the world, so it persists per resident.
+const EVENT_TEXT={
+ well_chord:'The stone at the bottom of the well lifts, and a brass coin rolls up onto the rim.',
+ glass_bird:'Something made of glass is crossing the orchard, one diagonal step at a time.',
+ whale_touch:'The whale rolls an eye at you and goes down.',
+ palimpsest_complete:'The last line of the fifth scroll names a loose board in the Nest.',
+ loose_board:'Under the loose board: a folded note that says only "you were here before you knew it".'
+};
+function announcing(v){const w=W();if(v!==undefined)w.announce=!!v;return w.announce===true}
+const drain=()=>{const p=pending;pending=[];if(announcing())return p;return p.filter(x=>EVENT_TEXT[x.id]).map(x=>({id:x.id,text:EVENT_TEXT[x.id],plain:true}))};
 
 // Glass Orchard: Life on a 24×24 grid of one-meter cells; a generation every world second. The grid is the floor.
 const OR={n:24,period:1};
@@ -146,7 +158,12 @@ const actions0=b4AgentActions;b4AgentActions=function(){const a=actions0(),r=roo
 const verb0=c9verb;c9verb=function(r,verb){const v=String(verb||'');if(SCENES[r]&&STATIC.has(v)){c9count(r,v);return handle(r,v)}if(v==='skip_stone'&&r==='KITE_FIELD'){c9count(r,v);return skipStone(20)}return verb0(r,verb)};
 function step(dt){stepOrchard();if(room()===MARSH)stepMarsh(dt);watchOldRooms()}
 const adv=b7Advance;b7Advance=function(dt){const r=adv(dt);step(Math.max(0,Number(dt)||0));return r};
-function words(){const r=room();if(r===ORCHARD)return [orchardWords()];if(r===WELL)return [wellWords()];if(r===DECK)return [deckWords()];if(r===MARSH)return [marshWords()];if(r===HALL)return [hallWords()];return []}
+const measured=()=>!!window.REALITI_MEASURE_V1?.on();
+function orchardCalm(o=orchard()){if(!o.pop)return o.planted?'The glass cells have all gone dark.':'Bare ground, laid out in one-meter squares.';return `${o.pop>60?'A crowd of glass cells':o.pop>15?'A patch of glass cells':'A few glass cells'} glitter on the ground, ${o.born>o.died?'spreading':o.born<o.died?'thinning':'holding steady'}.`}
+function wellCalm(w=well()){return `A long throat of stone, closed at the bottom.${w.last&&w.last.response>.8?' It is still ringing from your last hum.':''}`}
+function deckCalm(){const c=comet(),vis=Object.entries(CONST).filter(([,st])=>st.some(([ra,dec])=>altaz(ra,dec).alt>0)).map(([k])=>k);return `Above the horizon: ${vis.length?vis.join(', '):'nothing you know yet'}.${c.up?' The comet is up.':''}`}
+function marshCalm(){const m=marsh(),p=LZ.map(m.a),d=Math.hypot(p[0]-(me()?.pose.position[0]||0),p[1]-(me()?.pose.position[1]||0));return `The marsh light drifts ${d<3?'close by':d<8?'a little way off':'far out over the water'}.`}
+function words(){const r=room();if(!measured()){if(r===ORCHARD)return [orchardCalm()];if(r===WELL)return [wellCalm()];if(r===DECK)return [deckCalm()];if(r===MARSH)return [marshCalm()];if(r===HALL)return ['The scrolls lie open on their lecterns.'];return []}if(r===ORCHARD)return [orchardWords()];if(r===WELL)return [wellWords()];if(r===DECK)return [deckWords()];if(r===MARSH)return [marshWords()];if(r===HALL)return [hallWords()];return []}
 function list(){const f=found();return Object.keys(DISCOVERIES).map(id=>({id,found:!!f[id],...(f[id]||{}),text:f[id]?DISCOVERIES[id]:null}))}
-window.REALITI_CATNIP_V1=Object.freeze({version:'1.0-frontier',rooms:Object.keys(SCENES),words,drain,discover,register:(id,text)=>{if(!DISCOVERIES[id])DISCOVERIES[id]=String(text);return true},discoveries:list,found:()=>cp(found()),hum,sight,predict:(x,y)=>marshVerb('predict',[Number(x),Number(y)]),decode,readScroll,skipStone,state:()=>({orchard:{generation:orchard().gen,population:orchard().pop,age:orchard().maxAge},well:cp(well()),sky:{sidereal_deg:+lst().toFixed(1),comet:comet(),sighted:sky().sighted.slice(),visible:Object.entries(CONST).filter(([,st])=>st.some(([ra,dec])=>altaz(ra,dec).alt>0)).map(([k])=>k)},marsh:{wisp:LZ.map(marsh().a).map(x=>+x.toFixed(2)),hits:marsh().hits,predictions:marsh().preds,max_separation_m:+marsh().maxsep.toFixed(2)},hall:cp(hall()),discoveries:Object.keys(found()).length,total:Object.keys(DISCOVERIES).length})});
+window.REALITI_CATNIP_V1=Object.freeze({version:'1.0-frontier',rooms:Object.keys(SCENES),words,drain,announcing,discover,register:(id,text)=>{if(!DISCOVERIES[id])DISCOVERIES[id]=String(text);return true},discoveries:list,found:()=>cp(found()),hum,sight,predict:(x,y)=>marshVerb('predict',[Number(x),Number(y)]),decode,readScroll,skipStone,state:()=>({orchard:{generation:orchard().gen,population:orchard().pop,age:orchard().maxAge},well:cp(well()),sky:{sidereal_deg:+lst().toFixed(1),comet:comet(),sighted:sky().sighted.slice(),visible:Object.entries(CONST).filter(([,st])=>st.some(([ra,dec])=>altaz(ra,dec).alt>0)).map(([k])=>k)},marsh:{wisp:LZ.map(marsh().a).map(x=>+x.toFixed(2)),hits:marsh().hits,predictions:marsh().preds,max_separation_m:+marsh().maxsep.toFixed(2)},hall:cp(hall()),discoveries:Object.keys(found()).length,total:Object.keys(DISCOVERIES).length})});
 })();

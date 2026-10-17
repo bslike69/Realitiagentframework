@@ -6,7 +6,7 @@
 const U=window.REALITI_UNDERCITY_V1,A0=window.Realiti,D0=window.REALITI_AGENT_DOOR,M=window.REALITI_MATRIX_V1,SN=window.REALITI_SENSES_V1;if(!U||!A0||!D0||!M||!SN)return;
 const low=s=>String(s||'').replace(/\s+/g,' ').trim().toLowerCase(),inDark=()=>C9?.currentRoom===U.chart;
 const run0=D0.run.bind(D0),help0=D0.help.bind(D0);
-function reply(res){const d=(window.REALITI_CATNIP_V1?.drain?.()||[]).map(x=>'✦ Discovery: '+x.text);return {ok:res.ok!==false,...(res.error?{error:res.error}:{}),schema:'REALITI_UNDERCITY_RESULT_V1',result:res,text:[res.text||(res.error?`You cannot: ${res.error}.`:''),...d].filter(Boolean).join(' ')}}
+function reply(res){const d=(window.REALITI_CATNIP_V1?.drain?.()||[]).map(x=>(x.plain?x.text:'✦ Discovery: '+x.text));return {ok:res.ok!==false,...(res.error?{error:res.error}:{}),schema:'REALITI_UNDERCITY_RESULT_V1',result:res,text:[res.text||(res.error?`You cannot: ${res.error}.`:''),...d].filter(Boolean).join(' ')}}
 function reckon(){const r=M.state().residents['resident:self'],c=M.charts()[U.chart].spawn.position,dx=r.pose.position[0]-c[0],dy=r.pose.position[1]-c[1],f=M.facing(r);const yaw=Math.round(((Math.atan2(f[0],f[1])*180/Math.PI)%360+360)%360);return {from_grate_m:[+dx.toFixed(1),+dy.toFixed(1)],distance_m:+Math.hypot(dx,dy).toFixed(1),heading_deg:yaw}}
 function help(){const h=help0()||{commands:[]};h.commands=[...new Set([...(h.commands||[]),'clap','touch','pull lever','read wall','map'])];h.undercity='go UNDERCITY (the grate at the south-west of the Commons): no light. clap for sixteen echo delays, touch for what is in reach, listen and smell for water and air, map for what you have learned. The grate refuses anyone taller than 2.1 m.';return h}
 async function run(raw){const l=low(raw);
