@@ -85,6 +85,28 @@ node test/quiet.cjs ../../RealitiRELAX.html                     # this branch's 
 REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity npm test   # upstream suites, upstream semantics
 ```
 
+## Verified
+
+On 2026-10-16, in Claude's cloud workspace (Linux, Node 22), against this build:
+
+- `test/quiet.cjs`: 30 of 30 checks pass (branch defaults).
+- All 28 upstream headless suites and the public contract smoke test pass with
+  `REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity`. Three upstream checks were updated because the
+  behaviour changed on purpose: the first steps (no `next`, in `lingering` and `door-guide`) and the kite landing
+  (it now releases the fingers as well as the palms, in `wonder`).
+- The connector was tested against a throwaway `realiti-server` 1.4.0: a session resumes after the connector shuts
+  down, an explicit goodbye ends the visit with a hint, chat reaches the server, and action results are about a tenth
+  of their former size.
+
+Not yet tried: Windows-native Node, and a live city with several residents at once.
+
+## Not done, and why
+
+- F1 asked for per-digit zones (an index-finger crook and a thumb pad as an opposed pair). That needs new zones in the
+  body model and the neural pass; this branch only routes line tension to the existing fingers zone and adds a grip.
+  The line's hum is still described, not felt as a vibration.
+- B13 (pocket keys) and B11 (Undercity near ladder) are open, as is the harbor `walk to boathouse` stop.
+
 ## Credit
 
 REALITI is by its upstream author and contributors (AGPL-3.0-or-later for code, CC BY 4.0 for content; see `LICENSE`
