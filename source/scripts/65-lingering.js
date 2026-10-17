@@ -214,7 +214,12 @@ door.run=async function(raw){
  const before=fp(),felt0=grounded(),marks=JSON.stringify([C9?.b4?.lastReceipt,C9?.b7?.lastAgentAction]);
  const r=await run0(raw);
  if(!r||typeof r!=='object')return r;
- if(l==='felt'||l==='feel words'){const g=grounded();if(lastFelt){const d=delta(lastFelt,g);r.delta=d;r.text=`${r.text||''} ${d.text}`.trim()}lastFelt=g;return r}
+ if(l==='felt'||l==='feel words'){const g=grounded();
+  // Quiet branch: in words, say where the body is held rather than counting zones.
+  if(!window.REALITI_MEASURE_V1?.on?.()){let sp=null;try{sp=R.read('realiti://space')}catch{}const on=sp?.body?.on?(sp.nearby||[]).find(n=>n.id===sp.body.on)?.label||String(sp.body.on).split('.').pop():null;
+   const held=bodyWords(g.zones),pos=sp?.body?.posture||'';r.text=(pos==='standing'&&!on&&/^(both feet|your (left|right) foot)$/.test(held))?`You are standing, your weight on ${held.replace(/^your /,'your ')}.`:held?`${pos?`You are ${pos}${on?(pos==='floating'?' in':' on')+' the '+on:''}. `:''}${on?'Held':'Contact'} at ${held}.`:`${pos?`You are ${pos}. `:''}Nothing is holding you.`;
+   if(lastFelt){const d=delta(lastFelt,g);r.delta=d}lastFelt=g;return r}
+  if(lastFelt){const d=delta(lastFelt,g);r.delta=d;r.text=`${r.text||''} ${d.text}`.trim()}lastFelt=g;return r}
  if(l==='look'){const line=whereText()+(noticedIn(String(C9?.currentRoom||'')).length?' You have noticed: '+noticedIn(String(C9?.currentRoom||'')).join(' '):'');r.spatial_line=line;if(typeof r.text==='string')r.text=(r.text+'\n'+line).trim();else if(typeof r.resident_text==='string')r.resident_text=(r.resident_text+'\n'+line).trim();else r.text=line;const tr=foreign(true);if(tr.length){r.traces=rows(tr);r.text=((r.text||r.resident_text||'')+' '+traceText(tr)).trim()}}
  if(r.schema!=='REALITI_MUTATION_RESULT_V1'||r.ok===false)return r;
  try{window.REALITI_MATRIX_WORLD_V1?.sync?.()}catch(e){}

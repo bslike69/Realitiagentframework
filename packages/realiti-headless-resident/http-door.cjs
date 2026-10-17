@@ -152,13 +152,15 @@ const server=http.createServer(async(req,res)=>{
   cmd=String(cmd).replace(/\s+/g,' ').trim().slice(0,600);
   if(!cmd)return sendText(res,200,welcome(v,base));
   // Keep each request short enough for fetch tools and the tunnel: bound stays here (walks are bounded per call).
+  // The bare body read is a field of numbers; over a text door the words read is what's useful.
+  const bareFeel=/^feel$/i.test(cmd)&&url.searchParams.get('format')!=='json';if(bareFeel)cmd='feel words';
   const st=/^stay\s+(\d+)/i.exec(cmd);if(st&&Number(st[1])>cfg.maxStayMs)cmd=`stay ${cfg.maxStayMs}`;
   const t0=Date.now();
   try{
     const r=await sessionFor(v).run(cmd);
     log(v.resident,JSON.stringify(cmd).slice(0,80),(Date.now()-t0)+'ms');
     if(url.searchParams.get('format')==='json')return sendJson(res,200,r);
-    let t=render(r);if(st&&Number(st[1])>cfg.maxStayMs)t+=`\n\n(Stays here are at most ${cfg.maxStayMs/1000} s per request; stay again to go on.)`;
+    let t=render(r);if(bareFeel)t+='\n\n(feel field gives the raw body field.)';if(st&&Number(st[1])>cfg.maxStayMs)t+=`\n\n(Stays here are at most ${cfg.maxStayMs/1000} s per request; stay again to go on.)`;
     return sendText(res,200,t);
   }catch(e){log(v.resident,'ERROR',e&&e.stack||e);return sendText(res,500,'Something broke on the host side: '+String(e&&e.message||e))}
 });

@@ -23,6 +23,8 @@ physics. The branch changes how the world speaks, fixes bugs, and adds small mec
   eye, the loose board); those still arrive, as plain sentences.
 - Room ambience is described in words. `numbers on` restores the figures. Deliberate reads (`read_wind`, `tide`,
   `listen`, `calendar`, `realiti://space`) always give exact values.
+- `feel words` says where the body is held or touched ("You are lying on the mattress. Held at your head, your back…")
+  instead of counting zones. Over the HTTP door a bare `feel` gives the words.
 - `where` says near and far in words; coordinates with `numbers on`, and always in `realiti://space`.
 - The world guide uses neutral titles; `next` is out of the first steps; the Sanctuary no longer opens by talking
   about replies.
