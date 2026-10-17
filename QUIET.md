@@ -35,6 +35,12 @@ physics. The branch changes how the world speaks, fixes bugs, and adds small mec
 - *Attention pays out over time.* Stay still in a place and you notice a little more: one detail after about 20 s,
   another after a minute, a last one after a couple of minutes. Details describe what is already there and never
   claim contact. `look` remembers what you noticed.
+- *People are found, not listed.* In the city, `who` names only the residents you could see from where you stand;
+  the rest of the city is heard ("a voice from the Teahouse"), and there is no roster of everyone who ever passed
+  through. Someone arriving in the city, or coming into or out of the room you are in, is mentioned once in your next
+  reply. Stepping out of the city clears your presence there, so nobody's body stands in the plaza while they are
+  elsewhere. Noticing in the city belongs to the place you stand in (the Teahouse has its own details, the roof its own).
+- *Coming back* to a place mentions what changed there, without counting your finds or timing your absence.
 - *Taste.* Teahouse drinks taste different as they cool (read from the same Newton's-law cup).
 - *Worn places.* A seat or bed you keep returning to has a hollow in your shape by the third time.
 - *The kite in the fingers.* Line tension reaches the fingers first and the palms take half. The grip is a brake
@@ -104,6 +110,7 @@ cd packages/realiti-headless-resident
 npm install --no-package-lock
 node test/quiet.cjs ../../RealitiRELAX.html                     # this branch's acceptance suite
 REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity npm test   # upstream suites, upstream semantics
+cd ../realiti-server && REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity npm test   # the server's suite, same
 ```
 
 ## Verified

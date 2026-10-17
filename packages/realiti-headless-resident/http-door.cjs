@@ -15,7 +15,7 @@
 // Env:
 //   DOOR_PORT (8791), DOOR_HOST (127.0.0.1), REALITI_CITY_URL (http://127.0.0.1:8790), REALITI_PASSWORD (the city's
 //   SERVER_PASSWORD; never shown to door visitors), REALITI_HTML, DOOR_KEYS (JSON file: {"<key>":{"resident":"grok-public",
-//   "handle":"Grok"}}), DOOR_RESIDENTS (folder for resident save files), DOOR_WALK_BUDGET_MS (40000),
+//   "handle":"Grok"}}), DOOR_RESIDENTS (folder for resident save files), DOOR_WALK_BUDGET_MS (60000),
 //   DOOR_PUBLIC_URL_FILE (a file holding the public address, for the links in the instructions),
 //   DOOR_IDLE_MINUTES (30): an idle resident is saved and closed (no goodbye; the next command resumes where it stood).
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
@@ -29,7 +29,7 @@ const cfg={
   html:process.env.REALITI_HTML||path.join(ROOT,'RealitiRELAX.html'),
   keys:process.env.DOOR_KEYS||path.join(process.cwd(),'door-keys.json'),
   residents:process.env.DOOR_RESIDENTS||path.join(process.cwd(),'door-residents'),
-  walkMs:Number(process.env.DOOR_WALK_BUDGET_MS)||40000,idleMs:(Number(process.env.DOOR_IDLE_MINUTES)||30)*60000,
+  walkMs:Number(process.env.DOOR_WALK_BUDGET_MS)||60000,idleMs:(Number(process.env.DOOR_IDLE_MINUTES)||30)*60000,
   maxStayMs:30000,maxOpen:Number(process.env.DOOR_MAX_OPEN)||6
 };
 const log=(...a)=>console.log(new Date().toISOString(),...a);

@@ -94,8 +94,9 @@ function since(q){const s=S(),r=q?String(q).toUpperCase().replace(/\s+/g,'_'):ro
  if(b.tides!=null&&b.tides!==a.tides)lines.push(`${b.tides-a.tides} tides crossed the sandpile (${b.avalanches-a.avalanches} avalanches)`);
  if(b.sidereal!=null)lines.push(`the sky turned ${(((b.sidereal-a.sidereal)%360)+360)%360|0}°`);
  if(b.wind!=null)lines.push(`the wind is ${b.wind} m/s (was ${a.wind})`);
- if(b.discoveries>a.discoveries)lines.push(`${b.discoveries-a.discoveries} new discover${b.discoveries-a.discoveries===1?'y':'ies'}`);
- return {ok:true,schema:'REALITI_SINCE_V1',room:r,visits:v.count,away_world_s:away,away_real_s:real,before:a,now:b,changes:lines,text:`You left ${title(r)} ${away} s of world time ago. ${lines.length?'Since then: '+lines.join('; ')+'.':'Nothing you could measure has moved.'}`}}
+ const calm=!window.REALITI_MEASURE_V1?.on?.();// quiet branch: finds are kept quietly, and the return note doesn't time you
+ if(!calm&&b.discoveries>a.discoveries)lines.push(`${b.discoveries-a.discoveries} new discover${b.discoveries-a.discoveries===1?'y':'ies'}`);
+ return {ok:true,schema:'REALITI_SINCE_V1',room:r,visits:v.count,away_world_s:away,away_real_s:real,before:a,now:b,changes:lines,text:calm?(lines.length?`Since you were last in ${title(r)}: ${lines.join('; ')}.`:'Nothing you would notice has changed here.'):`You left ${title(r)} ${away} s of world time ago. ${lines.length?'Since then: '+lines.join('; ')+'.':'Nothing you could measure has moved.'}`}}
 
 // Tick and door hooks.
 let wallAt=0,treeAt=-1e9;

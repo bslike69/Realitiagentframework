@@ -35,7 +35,10 @@ async function joinCity(window,url,opts={}){
  // already closed, resend the same envelope once on a fresh socket instead of sealing a new one (which the server
  // would answer with SEQUENCE_GAP). If the first copy did arrive, the server says REPLAY and the heartbeat rejoins.
  let r;try{r=await post()}catch(e){r=await post()}const txt=await r.text();if(!r.ok){let j=null;try{j=JSON.parse(txt)}catch{}throw Object.assign(new Error(j?.error||'SEND_FAILED'),{code:j?.error})}const reply=session.open('RESPONSE',txt);for(const h of reply.here||[])LIVE.present(h);LIVE.setServer({population:reply.population,shards:reply.shards});return reply}
- async function publish(){const p=LIVE.myPresence();if(!p)return null;return send({type:'presence',...p})}
+ // Quiet branch: stepping out of the city clears your presence there (the lease stays), so others see you go instead
+ // of a body that stands in the plaza while you are in another room.
+ let shown=false;
+ async function publish(){const p=LIVE.myPresence();if(!p){if(shown){shown=false;return send({type:'leave'})}return null}shown=true;return send({type:'presence',...p})}
  // Keep the lease alive: renew at two thirds of its life; if the server has forgotten us (restart, expiry), rejoin.
  async function renew(){const r=await send({type:'renew'});if(r.expires_ms)session.expires_ms=r.expires_ms;return r}
  async function rejoin(){const head2=L2.head();const proof2=await L2.sign({by:head2.observer,kind:'PEER_JOIN',t:Date.now(),n:0});const l2=await call('/peer/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({proof:proof2,handle:CT.whoami().handle,exposure:policy.exposure,endpoint_label:policy.exposure==='OUTBOUND_RELAY'?'':policy.endpoint_label})});Object.assign(lease,l2);const fresh=new PeerSession({lease_id:l2.lease_id,self_id:l2.self_id,key:Buffer.from(l2.key_hex,'hex'),expires_ms:l2.expires_ms});Object.assign(session,{lease_id:fresh.lease_id,key:fresh.key,expires_ms:fresh.expires_ms,out:fresh.out,in:fresh.in});stats.rejoins=(stats.rejoins||0)+1;ctl0.abort();LIVE.setServer({population:l2.server.population,shards:l2.shards})}

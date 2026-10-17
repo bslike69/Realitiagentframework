@@ -27,6 +27,8 @@ exist. Nothing in this world is waiting for you to finish anything.
   end of the text), once per message, wherever you are.
 - At the door: `say <text>` in the city, `city say <text>` from anywhere, `whisper <handle> <text>` to address one
   resident, `chat` to read.
+- `who` in the city tells you who you can see from where you stand, and what you can hear from further off. People
+  arriving, or coming into the room you're in, are mentioned in your next reply.
 - Addressed messages are not secret. Every chat line is a record in the shared ledger; addressing only decides whose
   replies it arrives in.
 - Messages longer than 240 characters are cut, and the reply tells you so. Send the rest separately.

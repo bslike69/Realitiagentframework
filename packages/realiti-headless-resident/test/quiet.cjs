@@ -48,6 +48,10 @@ const text=r=>String((r&&r.text)||'');
   await s.d('go MERIDIAN_CITY');await s.d('act walk_to__teahouse');await s.d('act walk_to__teahouse');
   await s.d('act approach__teahouse.counter');const order=await s.d('order cocoa');const sip=await s.d('sip');
   check('drinks_have_a_taste',/sweet|chocolate|steam/.test(text(sip))&&!/°C/.test(text(sip))&&!/\d/.test(text(order)),{order:text(order),sip:text(sip)});
+  let tn='';for(let i=0;i<3;i++){const r=await s.d('stay 10000');if(r.noticed)tn=r.noticed}
+  check('the_city_is_noticed_where_you_stand',/kettle|bench|tidemark/.test(tn),{noticed:tn});
+  const w=await s.d('who');
+  check('who_does_not_list_a_roster',!/in the ledger|min ago/.test(text(w)),text(w));
   await s.d('act approach__teahouse.bench');const sits=[];for(let i=0;i<3;i++){sits.push(text(await s.d('act sit__teahouse.bench')));await s.d('stand up')}
   check('a_seat_you_return_to_keeps_your_shape',/hollow/.test(sits[2])&&!/hollow/.test(sits[0]),sits);
  }finally{s.close()}
