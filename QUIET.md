@@ -68,6 +68,8 @@ physics. The branch changes how the world speaks, fixes bugs, and adds small mec
 | B7 city arrivals stacked on one spot | Each resident arrives at a small offset fixed by their id |
 | B12 no way to release a companion | `release <name>` |
 | B2/B4 doubled articles, B5 duplicate action ids | Fixed |
+| B22 "You sit on teahouse bench." | Sitting and lying narration takes the article |
+| B23 standing up from a seat left you standing on top of it | You stand back where you stood before sitting |
 
 Not fixed: B13 (the sealed pocket's keys don't survive a headless restart; persisting them would undo the
 encryption, so it needs an upstream decision), B11 (Undercity near ladder; not reproduced yet).
