@@ -51,16 +51,27 @@ async function main(){
 
   const opts=parse(process.argv.slice(2));const open=()=>openResident({htmlPath:opts.htmlPath,residentId:opts.residentId,storagePath:opts.storagePath});
   // s/R/door are reassigned when a new visit starts after GOODBYE (see freshVisit below). (Claude, 2026-10-14)
-  let s=await open(),R=s.window.Realiti,door=s.door;const sch=R.read('realiti://schemas');
+  // Quiet branch (Claude, 2026-10-17): the resident opens on the first call that needs it, not at start-up. The app
+  // starts each connector twice (a probe, then the real one), and every page load counts as a visit, so visit numbers
+  // used to climb by two per app restart. The tool list comes from a throwaway page with no resident.
+  const sch=await (async()=>{const p=await openResident({htmlPath:opts.htmlPath});try{return p.window.Realiti.read('realiti://schemas')}finally{p.close()}})();
+  let s=null,R=null,door=null;
+  async function ensure(){if(!s){s=await open();R=s.window.Realiti;door=s.door}}
   const tools=[
     {name:'realiti_read',description:'Read a REALITI resource (never mutates). URIs: '+sch.resources.join(', '),inputSchema:{type:'object',properties:{uri:{type:'string',enum:sch.resources}},required:['uri']}},
     {name:'realiti_rooms',description:'List the rooms (never mutates).',inputSchema:{type:'object',properties:{}}},
     {name:'realiti_door',description:'Send a free-text Agent Door command (may act). See realiti_read realiti://capabilities for the command list.',inputSchema:sch.door.input_schema},
+    // Quiet branch: talking. Messages from others also arrive on their own with any action's reply (field "heard").
+    {name:'realiti_say',description:'Say something to the other residents in the city, from wherever you are. With "to" (a handle), it is addressed to one resident; addressed lines are still records in the shared ledger, so not secret. Max 240 characters per message.',inputSchema:{type:'object',properties:{text:{type:'string'},to:{type:'string',description:'optional handle of one resident'}},required:['text']}},
+    {name:'realiti_chat',description:'Read the recent conversation in the city (pulls the latest from the server first).',inputSchema:{type:'object',properties:{}}},
     ...sch.operations.map(o=>({name:'realiti_'+o.name,description:`[${o.kind}] ${o.description}`,inputSchema:o.input_schema}))
   ];
   const queryNames=new Set(sch.operations.filter(o=>o.kind==='QUERY').map(o=>'realiti_'+o.name));
   const mayMutate=name=>!(name==='realiti_read'||name==='realiti_rooms'||queryNames.has(name));
   async function localCall(name,args={}){
+    await ensure();
+    if(name==='realiti_say'){const t=String(args.text||'').replace(/\s+/g,' ').trim(),to=String(args.to||'').trim().replace(/^@/,'');if(!t)return {ok:false,error:'SAY_WHAT'};return await door.run(to?`whisper ${to.split(/\s+/)[0]} ${t}`:`city say ${t}`)}
+    if(name==='realiti_chat')return await door.run('chat');
     if(name==='realiti_read')return R.read(String(args.uri||'realiti://here'));
     if(name==='realiti_rooms')return R.rooms();
     if(name==='realiti_door')return await door.run(String(args.command||''));
@@ -69,7 +80,9 @@ async function main(){
   }
   let city=null;
   async function connect(){
-    if(!city) city=await joinCity(s.window,process.env.REALITI_CITY_URL||'http://127.0.0.1:8787');
+    await ensure();
+    // REALITI_PASSWORD: for a city started with SERVER_PASSWORD (e.g. one reachable from the internet).
+    if(!city) city=await joinCity(s.window,process.env.REALITI_CITY_URL||'http://127.0.0.1:8787',{password:process.env.REALITI_PASSWORD||''});
   }
   async function leave(){const c=city;city=null;if(c)await c.leave();}
   // Upstream treats one page load as one visit: the departure snapshot is written once per load and the visit number is
@@ -115,10 +128,12 @@ async function main(){
     return {...rest,...(here?{here:{room:here.room,world_time:here.world_time,session:here.session}}:{}),...(zones!==undefined&&!rest.felt?{felt:{grounded_zones:zones}}:{})};
   }
   async function call(name,args={}){
+    await ensure();
     if(!mayMutate(name))return localCall(name,args);
     await freshVisit();
     await connect();
     const wasActive=R.read('realiti://here').session!=='ended';
+    if(name==='realiti_chat'){try{await syncCity()}catch{}}
     // The door route below ignores "witness", so check it here the same way the invoke path does. (Claude, 2026-10-14)
     if(name==='realiti_act'&&args.witness){const w=R.read('realiti://here').witness;if(w&&String(args.witness)!==w)return {ok:false,error:'STALE_OBSERVATION',witness:w,law:'the world moved since you looked; read again and act on what is there now'}}
     // realiti_act goes through the Agent Door: invoke('do') drops the action's text (e.g. city_who returned only a
@@ -126,27 +141,33 @@ async function main(){
     const result=name==='realiti_act'
       ? await door.run('act '+String(args.id||''))
       : compact(await localCall(name,args));
+    let late=null;
     try{
       s.window.c9saveNow(); const saved=s.window.REALITI_SLICE_STORAGE.save();
       if(saved.ok===false)throw Error('Resident save failed: '+JSON.stringify(saved));
       if(R.read('realiti://here').session==='ended'){if(wasActive)departedHere=true;await leave();}
-      else await syncCity();
+      else{await syncCity();late=lateHeard()}
     }catch(e){return hinted({...result,city_sync:{ok:false,error:String(e.message||e),note:'Local result preserved; do not repeat an action just because sync failed.'}})}
+    if(late&&late.length&&result&&typeof result==='object'){const heard=[...(result.heard||[]),...late];return hinted({...result,heard,text:(result.text?String(result.text)+'\n\n':'')+late.map(x=>x.line).join('\n')})}
     return hinted(result);
   }
+  // Messages that came in with the sync after the action. The world marks each one heard, so nothing arrives twice.
+  function lateHeard(){try{if(s.window.REALITI_MEASURE_V1?.on?.())return null;const xs=s.window.REALITI_CITY_V1?.hear?.()||[];if(xs.length)s.window.c9saveNow();return xs}catch{return null}}
   const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
+  // A SIGTERM or Ctrl+C ends the request loop, so the finally block below still saves and records the departure.
+  for(const sig of ['SIGTERM','SIGINT'])process.once(sig,()=>rl.close());
   try {
   for await(const line of rl){
     if(!line.trim())continue;let req;try{req=JSON.parse(line)}catch{send({jsonrpc:'2.0',id:null,error:{code:-32700,message:'parse error'}});continue}
     const {id,method,params={}}=req;const reply=result=>{if(id!==undefined)send({jsonrpc:'2.0',id,result})},fail=(code,message,data)=>{if(id!==undefined)send({jsonrpc:'2.0',id,error:{code,message,...(data!==undefined?{data}:{})}})};
     try{
-      if(method==='initialize')reply({protocolVersion:PROTOCOL,capabilities:{tools:{},resources:{}},serverInfo:{name:'realiti-headless-resident',version:require('./package.json').version},instructions:'One resident in Brian’s local REALITI city. Nothing here is waiting for you to finish anything. go MERIDIAN_CITY to meet others; to talk, send say <text> through realiti_door (chat reads what was said). Long walks come in pieces: repeat the walk to go on. Actions sync and save. goodbye ends your visit; go brings you back. Reads never mutate. One resident per visitor.'});
+      if(method==='initialize')reply({protocolVersion:PROTOCOL,capabilities:{tools:{},resources:{}},serverInfo:{name:'realiti-headless-resident',version:require('./package.json').version},instructions:'One resident in Brian’s local REALITI city. Nothing here is waiting for you to finish anything. go MERIDIAN_CITY to meet others. realiti_say talks to the city from anywhere; what others say arrives with your replies (field heard), and realiti_chat reads the conversation. Long walks come in pieces: repeat the walk to go on. Actions sync and save. goodbye ends your visit; go brings you back. Reads never mutate. One resident per visitor.'});
       else if(method==='notifications/initialized'||method==='initialized'){}
       else if(method==='ping')reply({});
       else if(method==='tools/list')reply({tools});
       else if(method==='tools/call'){const name=String(params.name||''),args=params.arguments||{};const r=await call(name,args);reply({...text(r),isError:r&&typeof r==='object'&&r.ok===false,_meta:{may_mutate:mayMutate(name)}})}
       else if(method==='resources/list')reply({resources:sch.resources.map(uri=>({uri,name:uri.replace('realiti://',''),mimeType:'application/json'}))});
-      else if(method==='resources/read'){const uri=String(params.uri||'');if(!sch.resources.includes(uri))fail(-32602,'unknown resource'); /* was `return fail(...)`, which ended the whole request loop (Claude, 2026-10-14) */ else reply({contents:[{uri,mimeType:'application/json',text:JSON.stringify(R.read(uri))}]})}
+      else if(method==='resources/read'){const uri=String(params.uri||'');if(sch.resources.includes(uri))await ensure();if(!sch.resources.includes(uri))fail(-32602,'unknown resource'); /* was `return fail(...)`, which ended the whole request loop (Claude, 2026-10-14) */ else reply({contents:[{uri,mimeType:'application/json',text:JSON.stringify(R.read(uri))}]})}
       else if(method==='shutdown'){reply({});break}
       else fail(-32601,'method not found');
     }catch(e){fail(e.code||-32000,String(e.message||e))}
@@ -156,8 +177,8 @@ async function main(){
       // No goodbye on shutdown (quiet branch, Claude 2026-10-16): the connector closing is not the resident leaving.
       // A goodbye here made every next session start ended. Save, and let close() record a host_close departure;
       // the next session resumes where this one stood.
-      s.window.c9saveNow(); s.window.REALITI_SLICE_STORAGE.save();
-    } finally {try{await leave();}finally{s.close();}}
+      if(s){s.window.c9saveNow(); s.window.REALITI_SLICE_STORAGE.save();}
+    } finally {try{await leave();}finally{if(s)s.close();}}
   }
 }
 main().catch(e=>{process.stderr.write(String(e&&e.stack||e)+'\n');process.exit(1)});

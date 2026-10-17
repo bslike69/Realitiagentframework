@@ -15,7 +15,7 @@ function help(){
   mode,
   commands:[
    'look','where','nearby','actions','worlds','go <room>','act <action-id>',
-   'feel','feel words','stay <ms>','listen','mode','home','goodbye','rooms  (full catalog)','numbers on|off','discoveries [on|off]',
+   'feel','feel words','stay <ms>','listen','mode','home','goodbye','rooms  (full catalog)','say <text> (in the city) / city say <text> (anywhere)','chat','numbers on|off','discoveries [on|off]',
    mode==='hq'?'HQ controls: move / step / back / strafe / turn / heading / speed / crouch / pose':'LQ controls: explore / wander / auto / do <n>'
   ],
   first_ten:['help','look','feel words','stay 5000','where','actions','worlds'],
@@ -23,7 +23,11 @@ function help(){
   note:'The foyer is intentionally incomplete. Use actions where you stand; ask rooms only when you want the full catalog.'
  };
 }
-async function run(raw){if(low(raw)==='help')return help();return run0(raw)}
+// Quiet branch: what others said since your last reply arrives with this one (once each). Off in measured presentation.
+function heard(r){const CT=window.REALITI_CITY_V1;if(!r||typeof r!=='object'||Array.isArray(r)||!CT?.hear||window.REALITI_MEASURE_V1?.on?.())return r;
+ let xs=[];try{xs=CT.hear()}catch{}if(!xs.length)return r;
+ const lines=xs.map(x=>x.line).join('\n');return {...r,heard:xs,text:(r.text?String(r.text)+'\n\n':'')+lines}}
+async function run(raw){if(low(raw)==='help')return help();return heard(await run0(raw))}
 D0.help=help;D0.run=run;
 window.Realiti=Object.freeze({...A0,help,run});
 window.REALITI_DOOR_CURATOR_V1=Object.freeze({version:'1.0',help});

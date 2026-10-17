@@ -68,7 +68,7 @@ const text=r=>String((r&&r.text)||'');
  s=await fresh();
  try{
   await s.d('go ARCHIPELAGO');const w=await s.d('walk to cairn');
-  check('long_walks_pause_and_say_how_far',w.result?.partial===true&&/still to go/.test(text(w))&&w.result.walked_m<45,text(w));
+  check('long_walks_pause_and_say_how_far',w.result?.partial===true&&/still to go/.test(text(w))&&w.result.walked_m<120,text(w));
   await s.d('go MERIDIAN_CITY');const sp=s.publicApi.read('realiti://space').pose.position;
   check('city_arrival_is_offset_by_resident',Math.hypot(sp[0]-0,sp[1]+24)>1,sp);
   const ids=(await s.d('actions')).actions.map(a=>a.id);
@@ -76,6 +76,8 @@ const text=r=>String((r&&r.text)||'');
   check('doorway_labels_have_one_article',(await s.d('actions')).actions.filter(a=>/^through__/.test(a.id)).every(a=>!/THE THE|THE AN /.test(a.label)));
   const say=await s.d('say first we rest then we walk');
   check('then_inside_chat_is_not_a_command',say.ok!==false&&text(say).includes('then we walk'),text(say));
+  const ch=await s.d('chat we rest then walk');
+  check('then_inside_chat_command_is_not_split',ch.schema!=='REALITI_CHAIN_V1'&&ch.error!=='UNKNOWN_COMMAND',{schema:ch.schema,error:ch.error,text:text(ch)});
   const long=await s.d('say '+'z'.repeat(260));
   check('long_chat_says_it_was_cut',long.result?.truncated===true||/cut at 240/.test(text(long)),text(long).slice(-80));
   const th=await s.publicApi.invoke('through',{portal:'through__meridian_city.to.archipelago'});

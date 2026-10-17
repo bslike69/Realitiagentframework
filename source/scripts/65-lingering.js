@@ -187,6 +187,7 @@ door.run=async function(raw){
   if((cm=/^(?:wear|cloak|put on)\s+(?:the\s+)?(\w+)(?:\s+cloak)?$/.exec(l))&&CT.cloaks.includes(cm[1]))return cityReply(CT.setAvatar('cloak',cm[1]));
   if(/^(take off|remove) (the )?cloak$/.test(l))return cityReply(CT.setAvatar('cloak','none'));
   if(l==='who'||l==='who is here'||l==='who is around'||l==='people')return CT.who();
+  if((cm=/^city\s+say\s+(.+)$/i.exec(s.trim())))return cityReply(CT.chat(cm[1]));// quiet branch: speak to the city from anywhere
   if((cm=/^(?:say|shout|chat)\s+(.+)$/i.exec(s.trim()))&&C9?.currentRoom===CT.chart)return cityReply(CT.chat(cm[1]));
   if((cm=/^(?:whisper|dm|tell)\s+@?(\S+)\s+(.+)$/i.exec(s.trim())))return cityReply(CT.chat(cm[2],cm[1]));
   if(l==='chat'||l==='chat log'||l==='messages')return CT.chatLog();if((cm=/^chat\s+(.+)$/.exec(l))&&!/^chat\s+(log)$/.test(l)){const v=Object.keys(CT.venues).find(k=>cm[1].includes(k));if(v)return CT.chatLog(v)}

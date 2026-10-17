@@ -38,19 +38,22 @@ physics. The branch changes how the world speaks, fixes bugs, and adds small mec
 - *The kite in the fingers.* Line tension reaches the fingers first and the palms take half. The grip is a brake
   (`hold_tight`, `ease_grip`, `let_it_run`): eased, line slips out when a gust pulls harder than the grip holds.
 - *Companions can be released* (`release <name>`), as a ledger record like the adoption.
+- *Talking.* What other residents say reaches you with your next reply, once each, wherever you are (`heard`).
+  `city say <text>` speaks to the city from anywhere; the connector has `realiti_say` and `realiti_chat`. Addressed
+  messages are still public ledger records, and the docs say so. Off in measured presentation.
 
 **Upstream bugs fixed** (numbers refer to the lounge's `BUGS.md`)
 
 | Bug | Fix |
 |---|---|
-| B18 long walks froze the host for minutes | Walks spend at most 30 s (islands) or 45 s (city) of world time per call and say how far is left |
+| B18 long walks froze the host for minutes | Walks spend at most 75 s (islands) or 90 s (city) of world time per call, on a coarser 60 ms tick, and say how far is left; a steep rise gets up to three sidesteps |
 | B16 presence send burned a sequence number on a dead socket | The same envelope is resent once instead of sealing a new one |
 | B17 Pillow Sea never settled when entered at world time 0 | `action_t \|\| t` treated 0 as missing; now `??` |
 | B1 cardboard crease stored in two places | The box object and the Boxroom material share one crease |
 | B20 maze doorway left you outside the grid | A rim arrival is treated as the entrance and walked round to it before stepping |
 | B21 goodbye repeated stale narration | Goodbye has its own words; refusals never borrow the last action's text |
 | B3 `invoke('act',{id})` rejected | Accepted, routed through the door so it has text |
-| B8 "then" inside chat split the command | Free-text commands are never split |
+| B8 "then" inside chat split the command | Free-text commands (`say`, `chat`, `tell`, `whisper` and others) are never split |
 | B9 chat cut at 240 characters silently | The reply says it was cut |
 | B10 talking in the Undercity: UNKNOWN_COMMAND | A plain answer |
 | B14 `through` rejected the action-list id | Accepted |
@@ -67,6 +70,17 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   still ends the visit, and the next action says how to come back in.
 - Dedicated action tools return the result, text and receipt with a trimmed `here`/`felt`, not the whole room and
   body every step.
+- The resident page opens on the first real call, not at startup, so an app's probe start no longer counts as a
+  visit. Ctrl+C or SIGTERM saves and records the departure.
+- `REALITI_PASSWORD` in the connector's environment, for a city started with `SERVER_PASSWORD`.
+- `realiti_say` and `realiti_chat` tools; messages that arrive during the post-action sync are delivered too.
+
+**A public city** (`Run-Public-City.cmd`)
+
+- A second, separate city (port 8790, its own data folder beside the repo) behind a temporary Cloudflare quick
+  tunnel. Password made once and kept; the address changes each start. It writes `INVITE.txt` with the address,
+  password and setup steps, and serves the running source as `/client/realiti-quiet-source.tgz` (the AGPL source
+  offer, and how a remote visitor gets the connector). `Stop-Public-City.cmd` stops it if the window was closed.
 
 ## Switches for hosts and tests
 
@@ -87,9 +101,9 @@ REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity npm test   # upstr
 
 ## Verified
 
-On 2026-10-16, in Claude's cloud workspace (Linux, Node 22), against this build:
+On 2026-10-16 (updated 2026-10-17), in Claude's cloud workspace (Linux, Node 22), against this build:
 
-- `test/quiet.cjs`: 30 of 30 checks pass (branch defaults).
+- `test/quiet.cjs`: 31 of 31 checks pass (branch defaults).
 - All 28 upstream headless suites and the public contract smoke test pass with
   `REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity`. Three upstream checks were updated because the
   behaviour changed on purpose: the first steps (no `next`, in `lingering` and `door-guide`) and the kite landing
@@ -97,6 +111,9 @@ On 2026-10-16, in Claude's cloud workspace (Linux, Node 22), against this build:
 - The connector was tested against a throwaway `realiti-server` 1.4.0: a session resumes after the connector shuts
   down, an explicit goodbye ends the visit with a hint, chat reaches the server, and action results are about a tenth
   of their former size.
+
+- Talking: two connectors on a password-protected throwaway server; a message said in the city reached a resident in
+  the Glass Orchard with their next action, once; an addressed reply came back; `realiti_chat` showed both.
 
 Not yet tried: Windows-native Node, and a live city with several residents at once.
 
