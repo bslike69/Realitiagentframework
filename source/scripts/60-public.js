@@ -83,7 +83,7 @@ async function invoke(name,args={}){
  const t=name.toLowerCase();
  const parameters={act:['id'],feel:['mode'],go:['place'],do:['action'],receipt:['ref'],stay:['wall_ms'],wait_until:['max_wall_ms'],move:['local'],turn:['yaw_deg'],face:['target'],approach:['target'],through:['portal'],posture:['kind','target'],ambient_mode:['mode'],express:['kind','text'],note:['text'],later:['text'],forget_note:['receipt_id']};
  if(Object.keys(args).some(k=>!(parameters[t]||[]).includes(k)))return fail('INVALID_ARGUMENTS');
- if(t==='act'){if(typeof args.id!=='string'||!args.id)return fail('INVALID_ARGUMENTS');return window.REALITI_AGENT_DOOR.run('act '+args.id)}// quiet branch: act takes the id its schema advertises (B3)
+ if(t==='act'){if(typeof args.id!=='string'||!args.id)return fail('INVALID_ARGUMENTS');const listed=actions();if(listed.ok===false)return listed;if(!(listed.actions||[]).some(a=>a&&a.id===args.id))return {ok:false,error:'ACTION_UNAVAILABLE',id:args.id};return window.REALITI_AGENT_DOOR.run('act '+args.id)}// quiet branch: act takes the id its schema advertises (B3)
  if(t==='feel'&&args.mode!==undefined&&!['field','numbers','digest','words'].includes(args.mode))return fail('INVALID_ARGUMENTS');
  if(t==='go'&&typeof args.place!=='string')return fail('INVALID_ARGUMENTS');
  if(t==='express'&&(!['hum','stretch','yawn','sigh','say'].includes(args.kind)||(args.text!==undefined&&(typeof args.text!=='string'||args.text.length>512))))return fail('INVALID_ARGUMENTS');

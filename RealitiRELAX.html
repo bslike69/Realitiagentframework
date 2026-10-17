@@ -9512,7 +9512,7 @@ function row(target){const b=boat();if(!b.aboard)return {ok:false,error:'NOT_ABO
  const d1=Math.hypot(goal[0]-b.x,goal[1]-b.y);record('ROW',{from:start.map(x=>+x.toFixed(1)),to:[+b.x.toFixed(1),+b.y.toFixed(1)]});return {ok:true,rowed_m:+Math.hypot(b.x-start[0],b.y-start[1]).toFixed(1),remaining_m:+d1.toFixed(1),ashore:!!b.ashore,at:islandAt(b.x,b.y)?.name||'open water'}}
 
 // Walking far: repeated bounded moves toward a landmark, up to ten minutes of world time.
-const WALK_BUDGET_MS=Number(window.REALITI_WALK_BUDGET_MS)||75000;
+const WALK_BUDGET_MS=(v=>v>0?(Number.isFinite(v)?Math.floor(v):Infinity):75000)(Number(window.REALITI_WALK_BUDGET_MS));
 function walkTo(target){const r=me();if(!r||r.chart!==ISLE)return {ok:false,error:'NOT_ON_THE_ISLANDS'};if(boat().aboard)return {ok:false,error:'ABOARD_THE_BOAT'};const isl=typeof target==='string'?islandByName(target):null;const e=isl?M.entities()[LAND.find(l=>l[0].startsWith(isl.id+'.'))?.[0]]:M.resolve(target);if(!e)return {ok:false,error:'LANDMARK_NOT_FOUND'};MW.stand('walk');const start=r.pose.position.slice();let iters=0,last=Infinity,blocked=null,spent=0,partial=false,detours=0,side=1;
  // Quiet branch (B18): one call walks at most WALK_BUDGET_MS of world time, then reports how far is left. A long
  // crossing used to run minutes of simulation in one blocking call, freezing any host with a call timeout.
@@ -9951,7 +9951,7 @@ function setlist(){const xs=records().filter(e=>e.kind==='SONG').slice(-10);retu
 
 // Rooftop: thirty steps up; at night a rocket against quadratic drag, m dv/dt = −m g ẑ − ½ρ C_d A |v| v, RK4 to apex.
 // Quiet branch (B18): a walk spends at most CITY_BUDGET_MS of world time per call, then says how far is left.
-const CITY_BUDGET_MS=Number(window.REALITI_WALK_BUDGET_MS)||90000;let walkSpent=0;
+const CITY_BUDGET_MS=(v=>v>0?(Number.isFinite(v)?Math.floor(v):Infinity):90000)(Number(window.REALITI_WALK_BUDGET_MS));let walkSpent=0;
 const advB=ms=>{const m=Math.max(0,Math.min(Number(ms)||0,CITY_BUDGET_MS-walkSpent));walkSpent+=m;if(m>0){if(Number.isFinite(CITY_BUDGET_MS))C9.b7.longWalk=true;try{window.REALITI_CONTINUITY?.advance?.(m)}finally{C9.b7.longWalk=false}}return walkSpent<CITY_BUDGET_MS};
 function climb(){const r=me();if(!r||r.chart!==CITY)return {ok:false,error:'NOT_IN_THE_CITY'};MW.stand?.('climb');walkSpent=0;let it=0;for(const goal of [[60,33],[60,52],[60,60]]){while(it++<12&&dist2(goal,r.pose.position)>1.2){if(walkSpent>=CITY_BUDGET_MS)break;const d=dist2(goal,r.pose.position);M.moveTo([goal[0],goal[1],r.pose.position[2]]);advB(Math.min(60000,Math.ceil(1000*(d/1.2+1))));if(r.last_block&&dist2(goal,r.pose.position)>1.2)break}}
  const up=r.pose.position[2]>12,paused=!up&&walkSpent>=CITY_BUDGET_MS;if(paused)r.intent=null;if(up)CAT.discover('rooftop_view');arrive();return {ok:true,on_roof:up,height_m:+(r.pose.position[2]-r.shape.height/2).toFixed(2),text:up?'Thirty steps, and the city opens under you: the plaza, the fountain, four towers, the sea beyond the south hall.':paused?`You make your way toward the tower stair; ${dist2([60,60],r.pose.position).toFixed(0)} m still to go (walk to the rooftop again to go on).`:`You get ${(r.pose.position[2]-r.shape.height/2).toFixed(1)} m up the stair${r.last_block?` and something stops you (${r.last_block})`:''}.`}}
@@ -10662,7 +10662,7 @@ async function invoke(name,args={}){
  const t=name.toLowerCase();
  const parameters={act:['id'],feel:['mode'],go:['place'],do:['action'],receipt:['ref'],stay:['wall_ms'],wait_until:['max_wall_ms'],move:['local'],turn:['yaw_deg'],face:['target'],approach:['target'],through:['portal'],posture:['kind','target'],ambient_mode:['mode'],express:['kind','text'],note:['text'],later:['text'],forget_note:['receipt_id']};
  if(Object.keys(args).some(k=>!(parameters[t]||[]).includes(k)))return fail('INVALID_ARGUMENTS');
- if(t==='act'){if(typeof args.id!=='string'||!args.id)return fail('INVALID_ARGUMENTS');return window.REALITI_AGENT_DOOR.run('act '+args.id)}// quiet branch: act takes the id its schema advertises (B3)
+ if(t==='act'){if(typeof args.id!=='string'||!args.id)return fail('INVALID_ARGUMENTS');const listed=actions();if(listed.ok===false)return listed;if(!(listed.actions||[]).some(a=>a&&a.id===args.id))return {ok:false,error:'ACTION_UNAVAILABLE',id:args.id};return window.REALITI_AGENT_DOOR.run('act '+args.id)}// quiet branch: act takes the id its schema advertises (B3)
  if(t==='feel'&&args.mode!==undefined&&!['field','numbers','digest','words'].includes(args.mode))return fail('INVALID_ARGUMENTS');
  if(t==='go'&&typeof args.place!=='string')return fail('INVALID_ARGUMENTS');
  if(t==='express'&&(!['hum','stretch','yawn','sigh','say'].includes(args.kind)||(args.text!==undefined&&(typeof args.text!=='string'||args.text.length>512))))return fail('INVALID_ARGUMENTS');
@@ -12292,7 +12292,7 @@ function S(){const w=(C9.chapter2=C9.chapter2||{v:1});w.modes=w.modes||{mode:'lq
 const mode=()=>S().mode;
 const run0=D0.run.bind(D0),help0=D0.help.bind(D0);
 // Quiet branch (B8): commands that carry free text are never split on "then".
-const FREE_TEXT=/^(say|city say|chat|tell|whisper|post|note|later|remember|send|bottle|inscribe|sing|scratch|call me|adopt|name star|avatar motto|found|feel words about)\s/i;
+const FREE_TEXT=/^(say|city say|chat|tell|whisper|post|note|later|remember|send|bottle|inscribe|sing|scratch|call me|name star|avatar motto|found|feel words about)\s/i;
 const HQ=['move <right> <forward>  (meters, up to the chart stride)','step <m>','back <m>','strafe left|right <m>','turn <deg>  (signed, positive left)','heading <deg>  (face a compass bearing)','speed <m/s>  (0.3 to 2.5)','crouch / stand tall','path  (the last swept path)','pose'];
 const LQ=['explore  (walk to the nearest landmark you have not reached)','tour  (visit every venue or landmark here, one call)','wander <seconds>','follow <handle>','auto  (do the obvious next thing)','do <n>  (the nth listed action)','<command> then <command> ...'];
 const WORLD_GROUPS=Object.freeze([

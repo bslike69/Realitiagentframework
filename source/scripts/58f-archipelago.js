@@ -82,7 +82,7 @@ function row(target){const b=boat();if(!b.aboard)return {ok:false,error:'NOT_ABO
  const d1=Math.hypot(goal[0]-b.x,goal[1]-b.y);record('ROW',{from:start.map(x=>+x.toFixed(1)),to:[+b.x.toFixed(1),+b.y.toFixed(1)]});return {ok:true,rowed_m:+Math.hypot(b.x-start[0],b.y-start[1]).toFixed(1),remaining_m:+d1.toFixed(1),ashore:!!b.ashore,at:islandAt(b.x,b.y)?.name||'open water'}}
 
 // Walking far: repeated bounded moves toward a landmark, up to ten minutes of world time.
-const WALK_BUDGET_MS=Number(window.REALITI_WALK_BUDGET_MS)||75000;
+const WALK_BUDGET_MS=(v=>v>0?(Number.isFinite(v)?Math.floor(v):Infinity):75000)(Number(window.REALITI_WALK_BUDGET_MS));
 function walkTo(target){const r=me();if(!r||r.chart!==ISLE)return {ok:false,error:'NOT_ON_THE_ISLANDS'};if(boat().aboard)return {ok:false,error:'ABOARD_THE_BOAT'};const isl=typeof target==='string'?islandByName(target):null;const e=isl?M.entities()[LAND.find(l=>l[0].startsWith(isl.id+'.'))?.[0]]:M.resolve(target);if(!e)return {ok:false,error:'LANDMARK_NOT_FOUND'};MW.stand('walk');const start=r.pose.position.slice();let iters=0,last=Infinity,blocked=null,spent=0,partial=false,detours=0,side=1;
  // Quiet branch (B18): one call walks at most WALK_BUDGET_MS of world time, then reports how far is left. A long
  // crossing used to run minutes of simulation in one blocking call, freezing any host with a call timeout.

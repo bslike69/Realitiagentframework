@@ -100,6 +100,9 @@ function verifyAgentDoor(w){
 }
 
 async function openResident(options={}){
+  // walkBudgetMs / REALITI_WALK_BUDGET_MS: a positive number of world-time milliseconds (whole ms), or Infinity.
+  // Anything else is a configuration error, reported here rather than as a stalled or crashing walk later.
+  let walkBudget;{const raw=options.walkBudgetMs??process.env.REALITI_WALK_BUDGET_MS;if(raw!==undefined&&raw!==''){const n=Number(raw);if(!(n>0))throw Object.assign(new Error('INVALID_WALK_BUDGET: walkBudgetMs must be a positive number of milliseconds or Infinity, got '+JSON.stringify(raw)),{code:'INVALID_WALK_BUDGET'});walkBudget=Number.isFinite(n)?Math.max(1,Math.floor(n)):Infinity}}
   const runtimePath=findRuntime(options.htmlPath);
   const integrity=options.verifyIntegrity===false
     ? {status:'SKIPPED'}
@@ -128,7 +131,7 @@ async function openResident(options={}){
       if(options.residentId!==undefined)w.REALITI_RESIDENT_ID=String(options.residentId);
       // Quiet branch: walks are bounded per call (B18). walkBudgetMs (or REALITI_WALK_BUDGET_MS) overrides the bound;
       // Infinity restores upstream's unbounded walks, which the upstream test suites expect.
-      {const wb=options.walkBudgetMs??process.env.REALITI_WALK_BUDGET_MS;if(wb!==undefined&&wb!=='')w.REALITI_WALK_BUDGET_MS=Number(wb);}
+      if(walkBudget!==undefined)w.REALITI_WALK_BUDGET_MS=walkBudget;
       if(typeof options.beforeParse==='function')options.beforeParse(w);
     }
   });
