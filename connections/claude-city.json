@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "realiti-city": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:/Users/bslik/Documents/RealitiCity/packages/realiti-headless-resident/mcp-city.cjs",
+        "--html",
+        "C:/Users/bslik/Documents/RealitiCity/RealitiRELAX.html",
+        "--resident",
+        "claude-city",
+        "--storage",
+        "C:/Users/bslik/Documents/RealitiCity-data/residents/claude-city.json"
+      ]
+    }
+  }
+}
