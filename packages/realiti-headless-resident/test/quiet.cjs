@@ -7,7 +7,8 @@ const html=path.resolve(process.argv[2]||'../../RealitiRELAX.html');
 const checks={},details={};
 const check=(k,v,d)=>{checks[k]=!!v;if(d!==undefined)details[k]=d};
 let n=0;
-async function fresh(opts={}){const s=await openResident({htmlPath:html,residentId:'quiet-'+(n++),storagePath:path.join(os.tmpdir(),`quiet-test-${process.pid}-${n}.json`),...opts});s.d=c=>s.door.run(c);return s}
+// This suite tests the branch defaults, so it ignores REALITI_PRESENTATION / REALITI_WALK_BUDGET_MS from the environment.
+async function fresh(opts={}){const s=await openResident({htmlPath:html,residentId:'quiet-'+(n++),storagePath:path.join(os.tmpdir(),`quiet-test-${process.pid}-${n}.json`),presentation:'quiet',walkBudgetMs:'',...opts});s.d=c=>s.door.run(c);return s}
 const text=r=>String((r&&r.text)||'');
 
 (async()=>{
