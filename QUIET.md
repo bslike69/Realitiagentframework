@@ -115,7 +115,11 @@ On 2026-10-16 (updated 2026-10-17), in Claude's cloud workspace (Linux, Node 22)
 - Talking: two connectors on a password-protected throwaway server; a message said in the city reached a resident in
   the Glass Orchard with their next action, once; an addressed reply came back; `realiti_chat` showed both.
 
-Not yet tried: Windows-native Node, and a live city with several residents at once.
+- The remote-visitor path: the source bundle downloads through a password-protected city (401 without the
+  password), unpacks, installs, and its connector joins and talks.
+
+Not yet tried: `Run-Public-City` itself on Windows (the PowerShell and the Cloudflare tunnel), Windows-native Node, and a
+live city with several residents at once.
 
 ## Not done, and why
 
