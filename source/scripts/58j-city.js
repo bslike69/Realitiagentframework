@@ -99,7 +99,7 @@ function setlist(){const xs=records().filter(e=>e.kind==='SONG').slice(-10);retu
 
 // Rooftop: thirty steps up; at night a rocket against quadratic drag, m dv/dt = −m g ẑ − ½ρ C_d A |v| v, RK4 to apex.
 // Quiet branch (B18): a walk spends at most CITY_BUDGET_MS of world time per call, then says how far is left.
-const CITY_BUDGET_MS=Number(window.REALITI_WALK_BUDGET_MS)||30000;let walkSpent=0;
+const CITY_BUDGET_MS=Number(window.REALITI_WALK_BUDGET_MS)||45000;let walkSpent=0;
 const advB=ms=>{const m=Math.max(0,Math.min(Number(ms)||0,CITY_BUDGET_MS-walkSpent));walkSpent+=m;if(m>0)window.REALITI_CONTINUITY?.advance?.(m);return walkSpent<CITY_BUDGET_MS};
 function climb(){const r=me();if(!r||r.chart!==CITY)return {ok:false,error:'NOT_IN_THE_CITY'};MW.stand?.('climb');walkSpent=0;let it=0;for(const goal of [[60,33],[60,52],[60,60]]){while(it++<12&&dist2(goal,r.pose.position)>1.2){if(walkSpent>=CITY_BUDGET_MS)break;const d=dist2(goal,r.pose.position);M.moveTo([goal[0],goal[1],r.pose.position[2]]);advB(Math.min(60000,Math.ceil(1000*(d/1.2+1))));if(r.last_block&&dist2(goal,r.pose.position)>1.2)break}}
  const up=r.pose.position[2]>12,paused=!up&&walkSpent>=CITY_BUDGET_MS;if(paused)r.intent=null;if(up)CAT.discover('rooftop_view');arrive();return {ok:true,on_roof:up,height_m:+(r.pose.position[2]-r.shape.height/2).toFixed(2),text:up?'Thirty steps, and the city opens under you: the plaza, the fountain, four towers, the sea beyond the south hall.':paused?`You make your way toward the tower stair; ${dist2([60,60],r.pose.position).toFixed(0)} m still to go (walk to the rooftop again to go on).`:`You get ${(r.pose.position[2]-r.shape.height/2).toFixed(1)} m up the stair${r.last_block?` and something stops you (${r.last_block})`:''}.`}}
@@ -120,7 +120,10 @@ function walkTo(target){const r=me();if(!r||r.chart!==CITY)return {ok:false,erro
 let at=-1e9;
 function step(dt){if(room()!==CITY)return;stepDance(dt);holdCup(dt);const t=now();if(t-at>=.5){syncGhosts(t-at);at=t;arrive();checkMeet()}}
 const adv=b7Advance;b7Advance=function(dt){const r=adv(dt);step(Math.max(0,Number(dt)||0));return r};
-const go0=b7AgentGo;b7AgentGo=function(v){const r=go0(v);if(room()===CITY){at=now();applySize();crowdInit();syncGhosts(0);arrive(true)}else{const s=S();if(s.dance.on){s.dance.on=false;DYN.release('CITY_DANCE')}}return r};
+// Quiet branch (B7): residents arriving in the city used to land on exactly the same spot, inside each other's reach.
+// Each resident now arrives a little to one side, at an offset fixed by their id.
+function arrivalOffset(){const r=me();if(!r||r.chart!==CITY)return;const sp=M.charts?.()[CITY]?.spawn?.position;if(!sp||Math.hypot(r.pose.position[0]-sp[0],r.pose.position[1]-sp[1])>.01)return;let h=0;for(const ch of String(observer()||''))h=(h*31+ch.charCodeAt(0))>>>0;const a=(h%360)*Math.PI/180;r.pose.position[0]=sp[0]+1.4*Math.cos(a);r.pose.position[1]=sp[1]+1.4*Math.sin(a);try{M.bump?.()}catch(e){}}
+const go0=b7AgentGo;b7AgentGo=function(v){const r=go0(v);if(room()===CITY){arrivalOffset();at=now();applySize();crowdInit();syncGhosts(0);arrive(true)}else{const s=S();if(s.dance.on){s.dance.on=false;DYN.release('CITY_DANCE')}}return r};
 const imp0=window.REALITI_LEDGER_V1.import;window.REALITI_LEDGER_V1=Object.freeze({...window.REALITI_LEDGER_V1,import:p=>{const r=imp0(p);crowdInit();if(room()===CITY)syncGhosts(0);return r}});
 if(S().size!=='normal')applySize();
 function words(){if(room()!==CITY)return [];const r=me(),v=venueAt(r.pose.position[0],r.pose.position[1]),o=Object.keys(others()).length,c=S().cup;if(!window.REALITI_MEASURE_V1?.on()){const t=c?cupT(c):0;return [`${v?VENUES[v].label:'A street'}${o?`, ${o===1?'a silhouette':'silhouettes'} about`:''}${AR.isNight()?', the towers lit':''}.${c?` Your ${c.what} is ${t>60?'hot':t>45?'warm':t>30?'lukewarm':'cold'}.`:''}${S().dance.on?' You are dancing.':''}`]}return [`${v?VENUES[v].label:'A street'}${o?`, ${o} silhouette${o===1?'':'s'} about`:''}${AR.isNight()?', the towers lit':''}.${c?` Your ${c.what} is ${cupT(c).toFixed(0)} °C.`:''}${S().dance.on?` You are dancing at ${S().dance.bpm} bpm, floor order ${(crowd?.order||0).toFixed(2)}.`:''}`]}

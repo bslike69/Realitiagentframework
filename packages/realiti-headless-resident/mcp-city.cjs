@@ -106,6 +106,14 @@ async function main(){
     let room='CLOUD_NINE_NEST';try{room=R.read('realiti://here').room.id||room}catch{}
     return {...r,hint:`This visit has ended (the last visit said goodbye). Nothing is wrong. To come back in, use realiti_go with place "${room}", or the door command "go ${room}".`};
   }
+  // Quiet branch (B15): the dedicated action tools used to return the whole room and body on every step (~3.5 KB).
+  // Keep the result, text and receipt; trim here/body to what changed for the visitor. Full state is one read away
+  // (realiti_read realiti://here, realiti://body).
+  function compact(r){
+    if(!r||typeof r!=='object'||r.schema!=='REALITI_MUTATION_RESULT_V1'||(!r.here&&!r.body))return r;
+    const {here,body,...rest}=r;const g=body?.grounding;const zones=Array.isArray(g?.m)?g.m.filter(Boolean).length:undefined;
+    return {...rest,...(here?{here:{room:here.room,world_time:here.world_time,session:here.session}}:{}),...(zones!==undefined&&!rest.felt?{felt:{grounded_zones:zones}}:{})};
+  }
   async function call(name,args={}){
     if(!mayMutate(name))return localCall(name,args);
     await freshVisit();
@@ -117,7 +125,7 @@ async function main(){
     // receipt ref). The door path returns the same mutation result plus "text". (Claude, 2026-10-14; original in .bak)
     const result=name==='realiti_act'
       ? await door.run('act '+String(args.id||''))
-      : await localCall(name,args);
+      : compact(await localCall(name,args));
     try{
       s.window.c9saveNow(); const saved=s.window.REALITI_SLICE_STORAGE.save();
       if(saved.ok===false)throw Error('Resident save failed: '+JSON.stringify(saved));
