@@ -129,6 +129,7 @@ async function main(){
   }
   async function call(name,args={}){
     await ensure();
+    try{s.window.REALITI_LAST_ACT_WALL=Date.now()}catch{}// any tool use counts as being here (see 'very still')
     if(!mayMutate(name))return localCall(name,args);
     await freshVisit();
     await connect();

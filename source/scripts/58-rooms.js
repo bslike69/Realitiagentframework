@@ -28,7 +28,13 @@ const manifest=[
 const ids=new Set(manifest.map(x=>x.id)),copy=x=>JSON.parse(JSON.stringify(x)),key=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const names=new Map(manifest.flatMap(x=>[[key(x.id),x.id],[key(x.title),x.id]]));
 for(const [alias,id] of Object.entries({HOME:'CLOUD_NINE_NEST',NEST:'CLOUD_NINE_NEST',POCKET:'PET_ROOM_2',POCKET_FAMILIAR_HOUSE:'PET_ROOM_2',PILLOW:'BOTTOMLESS_PILLOW_SEA',BOX:'CARDBOARD_BOX_WORKSHOP',BATH:'DEPTH_BATHHOUSE',FIRESIDE:'SIDE_BY_SIDE_FIRESIDE',SHAPESHIFT:'SHAPESHIFT_CLOAKROOM',LAGOON:'LATENCY_LAGOON',ORRERY:'ORRERY_LOFT',MAZE:'LANTERN_MAZE',SHORE:'SANDPILE_SHORE',SANDPILE:'SANDPILE_SHORE',MEADOW:'FIREFLY_MEADOW',FIREFLIES:'FIREFLY_MEADOW',KITE:'KITE_FIELD',ORCHARD:'GLASS_ORCHARD',WELL:'RESONANCE_WELL',DECK:'STAR_DECK',SKY:'STAR_DECK',MARSH:'CLOCKWORK_MARSH',HALL:'PALIMPSEST_HALL',CITY:'MERIDIAN_CITY',UNDER:'UNDERCITY',TUNNELS:'UNDERCITY',BELOW:'UNDERCITY',DARK:'UNDERCITY',TOWN:'MERIDIAN_CITY',DOWNTOWN:'MERIDIAN_CITY',MERIDIAN:'MERIDIAN_CITY',PLAZA:'MERIDIAN_CITY',SCROLLS:'PALIMPSEST_HALL',ISLANDS:'ARCHIPELAGO',ISLES:'ARCHIPELAGO',SEA:'ARCHIPELAGO',HARBOR:'ARCHIPELAGO'}))names.set(key(alias),id);
-const resolve=x=>names.get(key(x))||null,fail=error=>({ok:false,error});
+// Quiet branch: "go bathhouse" used to fail with ROOM_OUTSIDE_SLICE, and a visitor concluded the Bathhouse wasn't in
+// this world. A name that matches exactly one room (by a word of its title or id) goes there; otherwise the refusal
+// says so in words and offers the near names.
+const near=x=>{const k=key(String(x||'').replace(/^(the|a|an)\s+/i,''));if(k.length<3)return [];return manifest.filter(m=>key(m.id).includes(k)||key(m.title).includes(k)).map(m=>m.id)};
+const resolve=x=>names.get(key(x))||(n=>n.length===1?n[0]:null)(near(x)),fail0=error=>({ok:false,error});
+window.REALITI_ROOM_NEAR=x=>near(x).map(id=>manifest.find(m=>m.id===id).title);
+let lastAsked='';const fail=error=>{if(error!=='ROOM_OUTSIDE_SLICE')return fail0(error);const n=near(lastAsked).map(id=>manifest.find(m=>m.id===id).title);return {ok:false,error,...(n.length?{did_you_mean:n}:{}),text:`There is no place called "${String(lastAsked).trim()}"${n.length?`. Did you mean ${n.join(' or ')}?`:'. rooms lists every place.'}`}};
 for(const x of manifest)if(!DATA.worlds[0].rooms.some(r=>r.id===x.id))DATA.worlds[0].rooms.push({id:x.id,title:x.title,kind:'wonder',purpose:x.purpose,features:[],tests:[],portals:[],behaviors:[],search_tags:[]});
 for(const world of DATA.worlds){world.rooms=world.rooms.filter(r=>ids.has(r.id));world.quiet='NO_ASK_SANCTUARY';for(const room of world.rooms){room.portals=(room.portals||[]).filter(p=>ids.has(typeof p==='string'?p:p.target));const pub=manifest.find(x=>x.id===room.id);if(pub){room.title=pub.title;room.purpose=pub.purpose;room.features=[];room.tests=[];room.search_tags=[]}}}
 if(C9SCENES.SIDE_BY_SIDE_FIRESIDE)C9SCENES.SIDE_BY_SIDE_FIRESIDE.intro='The second berth is honestly empty unless another grounded participant is actually present. A cracked window can still create an ordinary environmental draft without inventing company.';
@@ -44,7 +50,7 @@ if(supportEnable)window.REALITI_NEST_SUPPORT.enable=(...args)=>{const result=sup
 const oldOpen=openRoomId;
 function hush(value){window.REALITI_AMBIENT_V22?.setMode(value?'HUSH':'NORMAL');window.REALITI_CONTINUITY?.setHush(value);return {ok:true,hush:!!value}}
 function reopen(){guard();if(C9.welcome10)C9.welcome10.ended=false;window.REALITI_CONTINUITY?.reopen();}
-openRoomId=function(value){const id=resolve(value);if(!id)return fail('ROOM_OUTSIDE_SLICE');const before=C9.currentRoom;reopen();if(before!==id)releaseRoomLocalGrounding(before,id);oldOpen(id);if(id==='CLOUD_NINE_NEST')window.REALITI_NEST_SUPPORT?.enable?.('slice_room_entry');window.REALITI_CONTINUITY?.observe();return {ok:true,room:id,quiet_scope:id==='NO_ASK_SANCTUARY'?'ROOM_LOCAL':null}};
+openRoomId=function(value){lastAsked=String(value||'');const id=resolve(value);if(!id)return fail('ROOM_OUTSIDE_SLICE');const before=C9.currentRoom;reopen();if(before!==id)releaseRoomLocalGrounding(before,id);oldOpen(id);if(id==='CLOUD_NINE_NEST')window.REALITI_NEST_SUPPORT?.enable?.('slice_room_entry');window.REALITI_CONTINUITY?.observe();return {ok:true,room:id,quiet_scope:id==='NO_ASK_SANCTUARY'?'ROOM_LOCAL':null}};
 const oldGo=b7AgentGo;
 function releaseActiveGrounding(reason='slice_release'){
  const t=Number(C9?.b7?.clock||0);
@@ -60,7 +66,7 @@ function releaseActiveGrounding(reason='slice_release'){
  try{window.REALITI_HAPTIC_FIELD_V20?.record?.()}catch(e){}
 }
 function releaseRoomLocalGrounding(before,after){if(!before||before===after)return;releaseActiveGrounding('slice_room_transition')}
-b7AgentGo=function(value){const id=resolve(value);if(!id)return fail('ROOM_OUTSIDE_SLICE');const before=C9.currentRoom;reopen();if(before!==id)releaseRoomLocalGrounding(before,id);const result=oldGo(id);if(result?.ok&&id==='CLOUD_NINE_NEST')window.REALITI_NEST_SUPPORT?.enable?.('slice_room_entry');window.REALITI_CONTINUITY?.observe();return result?.ok?{...result,quiet_scope:id==='NO_ASK_SANCTUARY'?'ROOM_LOCAL':null}:result};
+b7AgentGo=function(value){lastAsked=String(value||'');const id=resolve(value);if(!id)return fail('ROOM_OUTSIDE_SLICE');const before=C9.currentRoom;reopen();if(before!==id)releaseRoomLocalGrounding(before,id);const result=oldGo(id);if(result?.ok&&id==='CLOUD_NINE_NEST')window.REALITI_NEST_SUPPORT?.enable?.('slice_room_entry');window.REALITI_CONTINUITY?.observe();return result?.ok?{...result,quiet_scope:id==='NO_ASK_SANCTUARY'?'ROOM_LOCAL':null}:result};
 b7AgentRooms=()=>copy(manifest);
 const add=(room,entries)=>{const s=C9SCENES[room];s.verbs=[...(s.verbs||[]),...entries].filter((x,i,a)=>a.findIndex(y=>y[0]===x[0])===i)};
 const borrowed=['attach_tail','brush_unmapped','map_paw','wiggle_pair','delay_pair','near_probe','detach_tail'];
@@ -105,7 +111,7 @@ function bodyBench(){
 }
 const oldVerb=c9verb;
 c9verb=function(value,verb){
- const room=resolve(value);if(!room)return fail('ROOM_OUTSIDE_SLICE');
+ lastAsked=String(value||'');const room=resolve(value);if(!room)return fail('ROOM_OUTSIDE_SLICE');
  let result;
  if(room==='CARDBOARD_BOX_WORKSHOP'&&verb==='fold_flap'){
   const o=C9?.b14?.objects?.['BOX-1'],before=Number(o?.state?.crease||0);

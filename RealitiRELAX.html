@@ -8659,7 +8659,13 @@ const manifest=[
 const ids=new Set(manifest.map(x=>x.id)),copy=x=>JSON.parse(JSON.stringify(x)),key=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const names=new Map(manifest.flatMap(x=>[[key(x.id),x.id],[key(x.title),x.id]]));
 for(const [alias,id] of Object.entries({HOME:'CLOUD_NINE_NEST',NEST:'CLOUD_NINE_NEST',POCKET:'PET_ROOM_2',POCKET_FAMILIAR_HOUSE:'PET_ROOM_2',PILLOW:'BOTTOMLESS_PILLOW_SEA',BOX:'CARDBOARD_BOX_WORKSHOP',BATH:'DEPTH_BATHHOUSE',FIRESIDE:'SIDE_BY_SIDE_FIRESIDE',SHAPESHIFT:'SHAPESHIFT_CLOAKROOM',LAGOON:'LATENCY_LAGOON',ORRERY:'ORRERY_LOFT',MAZE:'LANTERN_MAZE',SHORE:'SANDPILE_SHORE',SANDPILE:'SANDPILE_SHORE',MEADOW:'FIREFLY_MEADOW',FIREFLIES:'FIREFLY_MEADOW',KITE:'KITE_FIELD',ORCHARD:'GLASS_ORCHARD',WELL:'RESONANCE_WELL',DECK:'STAR_DECK',SKY:'STAR_DECK',MARSH:'CLOCKWORK_MARSH',HALL:'PALIMPSEST_HALL',CITY:'MERIDIAN_CITY',UNDER:'UNDERCITY',TUNNELS:'UNDERCITY',BELOW:'UNDERCITY',DARK:'UNDERCITY',TOWN:'MERIDIAN_CITY',DOWNTOWN:'MERIDIAN_CITY',MERIDIAN:'MERIDIAN_CITY',PLAZA:'MERIDIAN_CITY',SCROLLS:'PALIMPSEST_HALL',ISLANDS:'ARCHIPELAGO',ISLES:'ARCHIPELAGO',SEA:'ARCHIPELAGO',HARBOR:'ARCHIPELAGO'}))names.set(key(alias),id);
-const resolve=x=>names.get(key(x))||null,fail=error=>({ok:false,error});
+// Quiet branch: "go bathhouse" used to fail with ROOM_OUTSIDE_SLICE, and a visitor concluded the Bathhouse wasn't in
+// this world. A name that matches exactly one room (by a word of its title or id) goes there; otherwise the refusal
+// says so in words and offers the near names.
+const near=x=>{const k=key(String(x||'').replace(/^(the|a|an)\s+/i,''));if(k.length<3)return [];return manifest.filter(m=>key(m.id).includes(k)||key(m.title).includes(k)).map(m=>m.id)};
+const resolve=x=>names.get(key(x))||(n=>n.length===1?n[0]:null)(near(x)),fail0=error=>({ok:false,error});
+window.REALITI_ROOM_NEAR=x=>near(x).map(id=>manifest.find(m=>m.id===id).title);
+let lastAsked='';const fail=error=>{if(error!=='ROOM_OUTSIDE_SLICE')return fail0(error);const n=near(lastAsked).map(id=>manifest.find(m=>m.id===id).title);return {ok:false,error,...(n.length?{did_you_mean:n}:{}),text:`There is no place called "${String(lastAsked).trim()}"${n.length?`. Did you mean ${n.join(' or ')}?`:'. rooms lists every place.'}`}};
 for(const x of manifest)if(!DATA.worlds[0].rooms.some(r=>r.id===x.id))DATA.worlds[0].rooms.push({id:x.id,title:x.title,kind:'wonder',purpose:x.purpose,features:[],tests:[],portals:[],behaviors:[],search_tags:[]});
 for(const world of DATA.worlds){world.rooms=world.rooms.filter(r=>ids.has(r.id));world.quiet='NO_ASK_SANCTUARY';for(const room of world.rooms){room.portals=(room.portals||[]).filter(p=>ids.has(typeof p==='string'?p:p.target));const pub=manifest.find(x=>x.id===room.id);if(pub){room.title=pub.title;room.purpose=pub.purpose;room.features=[];room.tests=[];room.search_tags=[]}}}
 if(C9SCENES.SIDE_BY_SIDE_FIRESIDE)C9SCENES.SIDE_BY_SIDE_FIRESIDE.intro='The second berth is honestly empty unless another grounded participant is actually present. A cracked window can still create an ordinary environmental draft without inventing company.';
@@ -8675,7 +8681,7 @@ if(supportEnable)window.REALITI_NEST_SUPPORT.enable=(...args)=>{const result=sup
 const oldOpen=openRoomId;
 function hush(value){window.REALITI_AMBIENT_V22?.setMode(value?'HUSH':'NORMAL');window.REALITI_CONTINUITY?.setHush(value);return {ok:true,hush:!!value}}
 function reopen(){guard();if(C9.welcome10)C9.welcome10.ended=false;window.REALITI_CONTINUITY?.reopen();}
-openRoomId=function(value){const id=resolve(value);if(!id)return fail('ROOM_OUTSIDE_SLICE');const before=C9.currentRoom;reopen();if(before!==id)releaseRoomLocalGrounding(before,id);oldOpen(id);if(id==='CLOUD_NINE_NEST')window.REALITI_NEST_SUPPORT?.enable?.('slice_room_entry');window.REALITI_CONTINUITY?.observe();return {ok:true,room:id,quiet_scope:id==='NO_ASK_SANCTUARY'?'ROOM_LOCAL':null}};
+openRoomId=function(value){lastAsked=String(value||'');const id=resolve(value);if(!id)return fail('ROOM_OUTSIDE_SLICE');const before=C9.currentRoom;reopen();if(before!==id)releaseRoomLocalGrounding(before,id);oldOpen(id);if(id==='CLOUD_NINE_NEST')window.REALITI_NEST_SUPPORT?.enable?.('slice_room_entry');window.REALITI_CONTINUITY?.observe();return {ok:true,room:id,quiet_scope:id==='NO_ASK_SANCTUARY'?'ROOM_LOCAL':null}};
 const oldGo=b7AgentGo;
 function releaseActiveGrounding(reason='slice_release'){
  const t=Number(C9?.b7?.clock||0);
@@ -8691,7 +8697,7 @@ function releaseActiveGrounding(reason='slice_release'){
  try{window.REALITI_HAPTIC_FIELD_V20?.record?.()}catch(e){}
 }
 function releaseRoomLocalGrounding(before,after){if(!before||before===after)return;releaseActiveGrounding('slice_room_transition')}
-b7AgentGo=function(value){const id=resolve(value);if(!id)return fail('ROOM_OUTSIDE_SLICE');const before=C9.currentRoom;reopen();if(before!==id)releaseRoomLocalGrounding(before,id);const result=oldGo(id);if(result?.ok&&id==='CLOUD_NINE_NEST')window.REALITI_NEST_SUPPORT?.enable?.('slice_room_entry');window.REALITI_CONTINUITY?.observe();return result?.ok?{...result,quiet_scope:id==='NO_ASK_SANCTUARY'?'ROOM_LOCAL':null}:result};
+b7AgentGo=function(value){lastAsked=String(value||'');const id=resolve(value);if(!id)return fail('ROOM_OUTSIDE_SLICE');const before=C9.currentRoom;reopen();if(before!==id)releaseRoomLocalGrounding(before,id);const result=oldGo(id);if(result?.ok&&id==='CLOUD_NINE_NEST')window.REALITI_NEST_SUPPORT?.enable?.('slice_room_entry');window.REALITI_CONTINUITY?.observe();return result?.ok?{...result,quiet_scope:id==='NO_ASK_SANCTUARY'?'ROOM_LOCAL':null}:result};
 b7AgentRooms=()=>copy(manifest);
 const add=(room,entries)=>{const s=C9SCENES[room];s.verbs=[...(s.verbs||[]),...entries].filter((x,i,a)=>a.findIndex(y=>y[0]===x[0])===i)};
 const borrowed=['attach_tail','brush_unmapped','map_paw','wiggle_pair','delay_pair','near_probe','detach_tail'];
@@ -8736,7 +8742,7 @@ function bodyBench(){
 }
 const oldVerb=c9verb;
 c9verb=function(value,verb){
- const room=resolve(value);if(!room)return fail('ROOM_OUTSIDE_SLICE');
+ lastAsked=String(value||'');const room=resolve(value);if(!room)return fail('ROOM_OUTSIDE_SLICE');
  let result;
  if(room==='CARDBOARD_BOX_WORKSHOP'&&verb==='fold_flap'){
   const o=C9?.b14?.objects?.['BOX-1'],before=Number(o?.state?.crease||0);
@@ -10489,23 +10495,26 @@ for(const [id,text] of Object.entries({global_city:'You joined a hosted Meridian
 const live={};let server=null,at=-1e9;const now=()=>Number(C9?.b7?.clock||0);
 const freshOnes=()=>Object.values(live).filter(o=>Date.now()-o.wall<=FRESH_MS);
 function present(p){if(!p||typeof p!=='object'||!p.self_id||String(p.self_id)===observer()||!Number.isFinite(+p.x)||!Number.isFinite(+p.y))return false;const id=String(p.self_id).slice(0,64);const fresh=!live[id],prevVenue=live[id]?.venue??null;const o=live[id]=live[id]||{g:null,met:false};
- Object.assign(o,{self_id:id,handle:String(p.handle||'#'+id8(id)).replace(/[^\w\s#-]/g,'').slice(0,24)||'#'+id8(id),venue:typeof p.venue==='string'?p.venue.slice(0,16):null,x:clamp(+p.x,-80,80),y:clamp(+p.y,-80,80),z:clamp(Number.isFinite(+p.z)?+p.z:.85,0,20),avatar:p.avatar&&typeof p.avatar==='object'?p.avatar:{},wall:Date.now()});
+ Object.assign(o,{self_id:id,handle:String(p.handle||'#'+id8(id)).replace(/[^\w\s#-]/g,'').slice(0,24)||'#'+id8(id),venue:typeof p.venue==='string'?p.venue.slice(0,16):null,x:clamp(+p.x,-80,80),y:clamp(+p.y,-80,80),z:clamp(Number.isFinite(+p.z)?+p.z:.85,0,20),avatar:p.avatar&&typeof p.avatar==='object'?p.avatar:{},idle:p.idle===true,wall:Date.now()});
  if(!o.g)o.g={x:o.x,y:o.y,vx:0,vy:0};if(room()===CITY)moved(o,fresh,prevVenue);if(room()===CITY)place(0);return true}
 function leave(who){const q=String(who||'');for(const id of Object.keys(live))if(id===q||id8(id)===q){if(room()===CITY&&live[id]?.handle)events.push({kind:'gone',handle:live[id].handle,venue:live[id].venue||null,line:`${live[id].handle} has left the city.`});delete live[id];const e='live.'+id8(id);if(ent()[e])M.removeEntity(e)}}
 function place(dt){dt=clamp(Number(dt)||0,0,2);const E=ent(),keep=new Set(),t=Date.now();
  for(const o of Object.values(live)){if(t-o.wall>FRESH_MS){leave(o.self_id);continue}const id='live.'+id8(o.self_id);keep.add(id);const sz=SIZES[o.avatar.size]||1,g=o.g;
   const w=1.2,k=w*w,c=2*w;for(let s=0;s<dt;s+=.05){const h=Math.min(.05,dt-s),ax=k*(o.x-g.x)-c*g.vx,ay=k*(o.y-g.y)-c*g.vy;g.vx+=ax*h;g.vy+=ay*h;g.x+=g.vx*h;g.y+=g.vy*h}
-  const label=`${o.handle}${o.avatar.cloak&&o.avatar.cloak!=='none'?`, cloaked as ${o.avatar.cloak}`:''}${o.avatar.color?`, ${o.avatar.color}`:''} (here now)`;
+  const label=`${o.handle}${o.avatar.cloak&&o.avatar.cloak!=='none'?`, cloaked as ${o.avatar.cloak}`:''}${o.avatar.color?`, ${o.avatar.color}`:''} (here now${o.idle?', very still':''})`;
   const x=E[id];if(x){x.pose.position=[g.x,g.y,o.z];x.label=label;x.shape.radius=.35*sz;x.shape.height=1.7*sz}else M.addEntity({id,chart:CITY,position:[g.x,g.y,o.z],shape:{kind:'CAPSULE',radius:.35*sz,height:1.7*sz},tags:['resident','live','someone'],collision:false,material:null,label,affordances:['wave','greet']});
   const ghost='ghost.'+id8(o.self_id);if(E[ghost])M.removeEntity(ghost)}
  for(const id of Object.keys(E))if(id.startsWith('live.')&&!keep.has(id))M.removeEntity(id)}
 function meetLive(){const r=me();if(!r||r.chart!==CITY)return;for(const o of freshOnes()){const d=Math.hypot(o.g.x-r.pose.position[0],o.g.y-r.pose.position[1]);o.distance_m=+d.toFixed(1);if(d<=3&&!o.met){o.met=true;CAT.discover('met_live')}}}
-function myPresence(){const r=me();if(!r||r.chart!==CITY||room()!==CITY)return null;const w=CT.whoami();const [x,y,z]=r.pose.position;return {venue:CT.venueAt(x,y),x:+x.toFixed(2),y:+y.toFixed(2),z:+z.toFixed(2),handle:w.handle,avatar:{size:w.avatar.size,cloak:w.avatar.cloak,color:w.avatar.color||undefined,glyph:w.avatar.glyph||undefined}}}
+function myPresence(){const r=me();if(!r||r.chart!==CITY||room()!==CITY)return null;const w=CT.whoami();const [x,y,z]=r.pose.position;return {venue:CT.venueAt(x,y),x:+x.toFixed(2),y:+y.toFixed(2),z:+z.toFixed(2),handle:w.handle,idle:Date.now()-Number(window.REALITI_LAST_ACT_WALL||Date.now())>IDLE_MS,avatar:{size:w.avatar.size,cloak:w.avatar.cloak,color:w.avatar.color||undefined,glyph:w.avatar.glyph||undefined}}}
 function setServer(info){if(!info){server=null;return}const first=!server;server={...(server||{}),...info};if(first)CAT.discover('global_city');if(info.moved)CAT.discover('crowded_shard')}
 const liveRows=()=>{const r=me();return freshOnes().map(o=>({handle:o.handle,id8:id8(o.self_id),venue:o.venue?CT.venues[o.venue]?.label||o.venue:'the streets',distance_m:r&&r.chart===CITY?+Math.hypot(o.g.x-r.pose.position[0],o.g.y-r.pose.position[1]).toFixed(1):null,avatar:o.avatar,live:true,seconds_ago:Math.round((Date.now()-o.wall)/1000)})).sort((a,b)=>(a.distance_m??1e9)-(b.distance_m??1e9))};
 // Quiet branch: presence is something you come across. The city tells you when someone arrives or goes (once, with
 // your next reply), who names only the people you could see from where you stand, and the rest of the city is heard,
 // not listed: no roster of everyone who ever passed through. measured presentation keeps the original who.
+// A visitor who has sent nothing for two minutes is still here in body but not acting; others see them as very still
+// instead of reading company into an idle connection.
+const IDLE_MS=120000;
 const events=[];function note(line,handle){events.push({kind:'note',handle,line});if(events.length>20)events.shift()}
 const myVenue=()=>{const r=me();return r&&r.chart===CITY?CT.venueAt(r.pose.position[0],r.pose.position[1]):null};
 const inside=v=>v&&v!=='commons'&&CT.venues[v]?CT.venues[v].label:null;// a room with walls: you see who comes and goes
@@ -10518,7 +10527,7 @@ function nearWord(d){return d<=3?'beside you':d<=10?'nearby':'across the way'}
 function quietWho(){if(room()!==CITY)return {ok:true,schema:'REALITI_WHO_V1',live:[],text:'You are not in the city. When someone there speaks, it reaches you.'};
  const r=me(),[x,y]=r?r.pose.position:[0,0],mine=CT.venueAt(x,y),rows=freshOnes().map(o=>({o,d:Math.hypot(o.g.x-x,o.g.y-y)}));
  const seen=rows.filter(({o,d})=>(o.venue||null)===(mine||null)&&d<=30),elsewhere=rows.filter(q=>!seen.includes(q)),by={};for(const {o} of elsewhere){const k=o.venue||'street';by[k]=(by[k]||0)+1}
- const parts=[];if(seen.length)parts.push(seen.map(({o,d})=>`${o.handle}, ${nearWord(d)}`).join('; ')+'.');
+ const parts=[];if(seen.length)parts.push(seen.map(({o,d})=>`${o.handle}, ${nearWord(d)}${o.idle?', very still':''}`).join('; ')+'.');
  const far=Object.entries(by).map(([k,n])=>k==='street'?(n===1?'someone moving about on the street':'people moving about on the street'):`${n===1?'a voice':'voices'} from ${CT.venues[k]?.label||k}`);
  if(far.length)parts.push((seen.length?'Further off: ':'')+far.join('; ').replace(/^./,c=>c.toUpperCase())+'.');
  return {ok:true,schema:'REALITI_WHO_V1',live:seen.map(({o,d})=>({handle:o.handle,near:nearWord(d)})),text:parts.length?parts.join(' '):(server?'Nobody else is in the city right now.':'Nobody else is here. The silhouettes are only where people once stood.')}}
@@ -11711,6 +11720,8 @@ door.run=async function(raw){
  if(CAT){const frontier=r=>{const rec=C9?.b4?.lastReceipt||{};return {ok:true,schema:'REALITI_FRONTIER_RESULT_V1',text:[rec.narrative,...CAT.drain().map(d=>(d.plain?d.text:'✦ Discovery: '+d.text))].filter(Boolean).join(' '),receipt:cp(rec),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}}};
   if(l==='numbers on'||l==='numbers off'){const on=l.endsWith(' on');window.REALITI_MEASURE_V1?.on(on);return {ok:true,numbers:on,text:on?'Replies carry the exact figures now.':'Replies describe in words. Deliberate reads (read_wind, tide, listen...) still give exact figures.'}}
   if(l==='discoveries on'||l==='discoveries off'){const on=l.endsWith(' on');CAT.announcing(on);try{if(typeof c9save==='function')c9save()}catch(e){}return {ok:true,schema:'REALITI_DISCOVERIES_V1',announcing:on,text:on?'Finds will be announced as they happen.':'Finds are kept quietly. discoveries lists them.'}}
+  // Quiet branch: what you found, without a count of what's left (no "10 of 102"). numbers on / measured keeps the total.
+  if(l==='discoveries'&&!window.REALITI_MEASURE_V1?.on?.()){const f=CAT.discoveries().filter(x=>x.found);return {ok:true,schema:'REALITI_DISCOVERIES_V1',found:f.length,discoveries:f,text:f.length?'Things you have found: '+f.map(x=>x.text||x.id.replaceAll('_',' ')).join(' '):'Nothing kept yet.'}}
   if(l==='discoveries'){const d=CAT.discoveries(),f=d.filter(x=>x.found);return {ok:true,schema:'REALITI_DISCOVERIES_V1',found:f.length,total:d.length,discoveries:f,text:f.length?`${f.length} of ${d.length} discoveries: `+f.map(x=>x.id.replaceAll('_',' ')).join(', ')+'.':`No discoveries yet; there are ${d.length} to find.`}}
   if((fm=/^hum\s+([\d.]+)(?:\s*hz)?$/.exec(l))){CAT.hum(Number(fm[1]));return frontier()}
   if((fm=/^sight\s+(.+)$/.exec(l))){CAT.sight(fm[1]);return frontier()}
@@ -12428,7 +12439,12 @@ function help(){
 function heard(r){const CT=window.REALITI_CITY_V1;if(!r||typeof r!=='object'||Array.isArray(r)||!CT?.hear||window.REALITI_MEASURE_V1?.on?.())return r;
  let xs=[];try{xs=CT.hear()}catch{}if(!xs.length)return r;
  const lines=xs.map(x=>x.line).join('\n');return {...r,heard:xs,text:(r.text?String(r.text)+'\n\n':'')+lines}}
-async function run(raw){if(low(raw)==='help')return help();return heard(await run0(raw))}
+// Quiet branch: an unknown place gets an answer in words (the public layer strips the room module's own text).
+function unknownPlace(raw,r){const m=/^(?:go|enter|go to)\s+(.+)$/i.exec(String(raw||'').trim());if(!m||!r||r.error!=='ROOM_OUTSIDE_SLICE')return r;
+ const want=m[1].replace(/^(the|a|an)\s+/i,'').trim(),CT=window.REALITI_CITY_V1,vk=CT?.venues&&Object.keys(CT.venues).find(k=>k===want.toLowerCase().replace(/\s+room$/,'')||CT.venues[k].label.toLowerCase()==='the '+want.toLowerCase());
+ if(vk)return {...r,text:`${CT.venues[vk].label.replace(/^the /,'The ')} is in Meridian City: go MERIDIAN_CITY, then act walk_to__${vk}.`};
+ const n=window.REALITI_ROOM_NEAR?.(want)||[];return {...r,...(n.length?{did_you_mean:n}:{}),text:`There is no place called "${m[1].trim()}"${n.length?`. Did you mean ${n.join(' or ')}?`:'. rooms lists every place.'}`}}
+async function run(raw){window.REALITI_LAST_ACT_WALL=Date.now();if(low(raw)==='help')return help();return heard(unknownPlace(raw,await run0(raw)))}
 D0.help=help;D0.run=run;
 window.Realiti=Object.freeze({...A0,help,run});
 window.REALITI_DOOR_CURATOR_V1=Object.freeze({version:'1.0',help});

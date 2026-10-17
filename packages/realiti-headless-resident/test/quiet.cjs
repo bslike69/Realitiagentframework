@@ -32,6 +32,7 @@ const text=r=>String((r&&r.text)||'');
   await s.d('numbers off');
   await s.d('go FIREFLY_MEADOW');await s.d('act tap_along');let all='';for(let i=0;i<5;i++)all+=text(await s.d('stay 8000'));
   const disc=await s.d('discoveries');
+  check('discoveries_do_not_count_what_is_left',!/ of \d+|to find/.test(text(disc))&&disc.total===undefined,text(disc));
   check('finds_are_kept_but_not_announced',!all.includes('✦')&&disc.found>=1,{found:disc.found,sample:all.slice(0,160)});
   s.window.REALITI_CATNIP_V1.discover('well_chord');const ev=text(await s.d('stay 500'));
   check('world_event_finds_arrive_as_plain_sentences',ev.includes('brass coin rolls up onto the rim')&&!ev.includes('✦'),ev);
@@ -105,6 +106,10 @@ const text=r=>String((r&&r.text)||'');
   check('cardboard_crease_is_one_truth',/crease=0\.[1-9]/.test(tap),tap);
   await s.d('go BOTTOMLESS_PILLOW_SEA');await s.d('act dive');const v0=s.publicApi.read('realiti://here')&&s.window.REALITI_TRUST_V234.pillow().mode_value;await s.d('stay 5000');const v1=s.window.REALITI_TRUST_V234.pillow().mode_value;
   check('pillow_sea_settles_from_world_time_zero',v1<v0*.5,{v0,v1});
+  const gb=await s.d('go bathhouse');
+  check('a_partial_place_name_finds_its_room',gb.ok!==false&&/pool/.test(text(gb)),text(gb).slice(0,80));
+  const gt=await s.d('go the teahouse');
+  check('an_unknown_place_is_answered_in_words',/Meridian City/.test(text(gt)),text(gt));
   await s.d('go UNDERCITY');const u=await s.d('say hello');
   check('talking_in_the_dark_gets_an_answer',u.error!=='UNKNOWN_COMMAND'&&/come up to talk/.test(text(u)),u);
  }finally{s.close()}

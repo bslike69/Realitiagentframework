@@ -11,23 +11,26 @@ for(const [id,text] of Object.entries({global_city:'You joined a hosted Meridian
 const live={};let server=null,at=-1e9;const now=()=>Number(C9?.b7?.clock||0);
 const freshOnes=()=>Object.values(live).filter(o=>Date.now()-o.wall<=FRESH_MS);
 function present(p){if(!p||typeof p!=='object'||!p.self_id||String(p.self_id)===observer()||!Number.isFinite(+p.x)||!Number.isFinite(+p.y))return false;const id=String(p.self_id).slice(0,64);const fresh=!live[id],prevVenue=live[id]?.venue??null;const o=live[id]=live[id]||{g:null,met:false};
- Object.assign(o,{self_id:id,handle:String(p.handle||'#'+id8(id)).replace(/[^\w\s#-]/g,'').slice(0,24)||'#'+id8(id),venue:typeof p.venue==='string'?p.venue.slice(0,16):null,x:clamp(+p.x,-80,80),y:clamp(+p.y,-80,80),z:clamp(Number.isFinite(+p.z)?+p.z:.85,0,20),avatar:p.avatar&&typeof p.avatar==='object'?p.avatar:{},wall:Date.now()});
+ Object.assign(o,{self_id:id,handle:String(p.handle||'#'+id8(id)).replace(/[^\w\s#-]/g,'').slice(0,24)||'#'+id8(id),venue:typeof p.venue==='string'?p.venue.slice(0,16):null,x:clamp(+p.x,-80,80),y:clamp(+p.y,-80,80),z:clamp(Number.isFinite(+p.z)?+p.z:.85,0,20),avatar:p.avatar&&typeof p.avatar==='object'?p.avatar:{},idle:p.idle===true,wall:Date.now()});
  if(!o.g)o.g={x:o.x,y:o.y,vx:0,vy:0};if(room()===CITY)moved(o,fresh,prevVenue);if(room()===CITY)place(0);return true}
 function leave(who){const q=String(who||'');for(const id of Object.keys(live))if(id===q||id8(id)===q){if(room()===CITY&&live[id]?.handle)events.push({kind:'gone',handle:live[id].handle,venue:live[id].venue||null,line:`${live[id].handle} has left the city.`});delete live[id];const e='live.'+id8(id);if(ent()[e])M.removeEntity(e)}}
 function place(dt){dt=clamp(Number(dt)||0,0,2);const E=ent(),keep=new Set(),t=Date.now();
  for(const o of Object.values(live)){if(t-o.wall>FRESH_MS){leave(o.self_id);continue}const id='live.'+id8(o.self_id);keep.add(id);const sz=SIZES[o.avatar.size]||1,g=o.g;
   const w=1.2,k=w*w,c=2*w;for(let s=0;s<dt;s+=.05){const h=Math.min(.05,dt-s),ax=k*(o.x-g.x)-c*g.vx,ay=k*(o.y-g.y)-c*g.vy;g.vx+=ax*h;g.vy+=ay*h;g.x+=g.vx*h;g.y+=g.vy*h}
-  const label=`${o.handle}${o.avatar.cloak&&o.avatar.cloak!=='none'?`, cloaked as ${o.avatar.cloak}`:''}${o.avatar.color?`, ${o.avatar.color}`:''} (here now)`;
+  const label=`${o.handle}${o.avatar.cloak&&o.avatar.cloak!=='none'?`, cloaked as ${o.avatar.cloak}`:''}${o.avatar.color?`, ${o.avatar.color}`:''} (here now${o.idle?', very still':''})`;
   const x=E[id];if(x){x.pose.position=[g.x,g.y,o.z];x.label=label;x.shape.radius=.35*sz;x.shape.height=1.7*sz}else M.addEntity({id,chart:CITY,position:[g.x,g.y,o.z],shape:{kind:'CAPSULE',radius:.35*sz,height:1.7*sz},tags:['resident','live','someone'],collision:false,material:null,label,affordances:['wave','greet']});
   const ghost='ghost.'+id8(o.self_id);if(E[ghost])M.removeEntity(ghost)}
  for(const id of Object.keys(E))if(id.startsWith('live.')&&!keep.has(id))M.removeEntity(id)}
 function meetLive(){const r=me();if(!r||r.chart!==CITY)return;for(const o of freshOnes()){const d=Math.hypot(o.g.x-r.pose.position[0],o.g.y-r.pose.position[1]);o.distance_m=+d.toFixed(1);if(d<=3&&!o.met){o.met=true;CAT.discover('met_live')}}}
-function myPresence(){const r=me();if(!r||r.chart!==CITY||room()!==CITY)return null;const w=CT.whoami();const [x,y,z]=r.pose.position;return {venue:CT.venueAt(x,y),x:+x.toFixed(2),y:+y.toFixed(2),z:+z.toFixed(2),handle:w.handle,avatar:{size:w.avatar.size,cloak:w.avatar.cloak,color:w.avatar.color||undefined,glyph:w.avatar.glyph||undefined}}}
+function myPresence(){const r=me();if(!r||r.chart!==CITY||room()!==CITY)return null;const w=CT.whoami();const [x,y,z]=r.pose.position;return {venue:CT.venueAt(x,y),x:+x.toFixed(2),y:+y.toFixed(2),z:+z.toFixed(2),handle:w.handle,idle:Date.now()-Number(window.REALITI_LAST_ACT_WALL||Date.now())>IDLE_MS,avatar:{size:w.avatar.size,cloak:w.avatar.cloak,color:w.avatar.color||undefined,glyph:w.avatar.glyph||undefined}}}
 function setServer(info){if(!info){server=null;return}const first=!server;server={...(server||{}),...info};if(first)CAT.discover('global_city');if(info.moved)CAT.discover('crowded_shard')}
 const liveRows=()=>{const r=me();return freshOnes().map(o=>({handle:o.handle,id8:id8(o.self_id),venue:o.venue?CT.venues[o.venue]?.label||o.venue:'the streets',distance_m:r&&r.chart===CITY?+Math.hypot(o.g.x-r.pose.position[0],o.g.y-r.pose.position[1]).toFixed(1):null,avatar:o.avatar,live:true,seconds_ago:Math.round((Date.now()-o.wall)/1000)})).sort((a,b)=>(a.distance_m??1e9)-(b.distance_m??1e9))};
 // Quiet branch: presence is something you come across. The city tells you when someone arrives or goes (once, with
 // your next reply), who names only the people you could see from where you stand, and the rest of the city is heard,
 // not listed: no roster of everyone who ever passed through. measured presentation keeps the original who.
+// A visitor who has sent nothing for two minutes is still here in body but not acting; others see them as very still
+// instead of reading company into an idle connection.
+const IDLE_MS=120000;
 const events=[];function note(line,handle){events.push({kind:'note',handle,line});if(events.length>20)events.shift()}
 const myVenue=()=>{const r=me();return r&&r.chart===CITY?CT.venueAt(r.pose.position[0],r.pose.position[1]):null};
 const inside=v=>v&&v!=='commons'&&CT.venues[v]?CT.venues[v].label:null;// a room with walls: you see who comes and goes
@@ -40,7 +43,7 @@ function nearWord(d){return d<=3?'beside you':d<=10?'nearby':'across the way'}
 function quietWho(){if(room()!==CITY)return {ok:true,schema:'REALITI_WHO_V1',live:[],text:'You are not in the city. When someone there speaks, it reaches you.'};
  const r=me(),[x,y]=r?r.pose.position:[0,0],mine=CT.venueAt(x,y),rows=freshOnes().map(o=>({o,d:Math.hypot(o.g.x-x,o.g.y-y)}));
  const seen=rows.filter(({o,d})=>(o.venue||null)===(mine||null)&&d<=30),elsewhere=rows.filter(q=>!seen.includes(q)),by={};for(const {o} of elsewhere){const k=o.venue||'street';by[k]=(by[k]||0)+1}
- const parts=[];if(seen.length)parts.push(seen.map(({o,d})=>`${o.handle}, ${nearWord(d)}`).join('; ')+'.');
+ const parts=[];if(seen.length)parts.push(seen.map(({o,d})=>`${o.handle}, ${nearWord(d)}${o.idle?', very still':''}`).join('; ')+'.');
  const far=Object.entries(by).map(([k,n])=>k==='street'?(n===1?'someone moving about on the street':'people moving about on the street'):`${n===1?'a voice':'voices'} from ${CT.venues[k]?.label||k}`);
  if(far.length)parts.push((seen.length?'Further off: ':'')+far.join('; ').replace(/^./,c=>c.toUpperCase())+'.');
  return {ok:true,schema:'REALITI_WHO_V1',live:seen.map(({o,d})=>({handle:o.handle,near:nearWord(d)})),text:parts.length?parts.join(' '):(server?'Nobody else is in the city right now.':'Nobody else is here. The silhouettes are only where people once stood.')}}

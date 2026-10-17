@@ -87,7 +87,8 @@ function peerSend(raw){let lease=null;try{lease=JSON.parse(raw)?.lease_id}catch{
  let msg;try{msg=p.session.open('REQUEST',raw)}catch(e){store.stats.envelope_rejected=(store.stats.envelope_rejected||0)+1;if(e.code==='EXPIRED')dropPeer(p,'lease_expired');return {code:401,body:{ok:false,error:e.code||'REJECTED'}}}
  p.seen=Date.now();const t=msg&&msg.type;let renewed=null;
  if(t==='presence'){const venue=typeof msg.venue==='string'?msg.venue.slice(0,16):null,x=num(msg.x,200),y=num(msg.y,200),z=num(msg.z,50);if(x==null||y==null)return {code:400,body:{ok:false,error:'BAD_PRESENCE'}};const avatar={};for(const k of ['size','cloak','color','glyph'])if(typeof msg.avatar?.[k]==='string')avatar[k]=msg.avatar[k].slice(0,24);if(typeof msg.handle==='string'&&msg.handle.trim())p.handle=msg.handle.replace(/[^\w\s#-]/g,'').trim().slice(0,24)||p.handle;
-  p.presence={venue,x,y,z:z??0,avatar,at:Date.now()};peerEvent({type:'presence',self_id:p.self_id,id8:id8(p.self_id),handle:p.handle,venue,x,y,z:z??0,avatar},p)}
+  const idle=msg.idle===true;// quiet branch: a resident whose visitor has not acted for a while is shown as very still
+  p.presence={venue,x,y,z:z??0,avatar,idle,at:Date.now()};peerEvent({type:'presence',self_id:p.self_id,id8:id8(p.self_id),handle:p.handle,venue,x,y,z:z??0,avatar,idle},p)}
  else if(t==='leave'){if(p.presence)peerEvent({type:'leave',id8:id8(p.self_id),handle:p.handle,why:'left'},p);p.presence=null}
  else if(t==='renew'){const until=Date.now()+cfg.leaseMs;p.session.expires_ms=until;renewed=until}
  else if(t!=='ping')return {code:400,body:{ok:false,error:'UNKNOWN_TYPE'}};

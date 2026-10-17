@@ -27,7 +27,12 @@ function help(){
 function heard(r){const CT=window.REALITI_CITY_V1;if(!r||typeof r!=='object'||Array.isArray(r)||!CT?.hear||window.REALITI_MEASURE_V1?.on?.())return r;
  let xs=[];try{xs=CT.hear()}catch{}if(!xs.length)return r;
  const lines=xs.map(x=>x.line).join('\n');return {...r,heard:xs,text:(r.text?String(r.text)+'\n\n':'')+lines}}
-async function run(raw){if(low(raw)==='help')return help();return heard(await run0(raw))}
+// Quiet branch: an unknown place gets an answer in words (the public layer strips the room module's own text).
+function unknownPlace(raw,r){const m=/^(?:go|enter|go to)\s+(.+)$/i.exec(String(raw||'').trim());if(!m||!r||r.error!=='ROOM_OUTSIDE_SLICE')return r;
+ const want=m[1].replace(/^(the|a|an)\s+/i,'').trim(),CT=window.REALITI_CITY_V1,vk=CT?.venues&&Object.keys(CT.venues).find(k=>k===want.toLowerCase().replace(/\s+room$/,'')||CT.venues[k].label.toLowerCase()==='the '+want.toLowerCase());
+ if(vk)return {...r,text:`${CT.venues[vk].label.replace(/^the /,'The ')} is in Meridian City: go MERIDIAN_CITY, then act walk_to__${vk}.`};
+ const n=window.REALITI_ROOM_NEAR?.(want)||[];return {...r,...(n.length?{did_you_mean:n}:{}),text:`There is no place called "${m[1].trim()}"${n.length?`. Did you mean ${n.join(' or ')}?`:'. rooms lists every place.'}`}}
+async function run(raw){window.REALITI_LAST_ACT_WALL=Date.now();if(low(raw)==='help')return help();return heard(unknownPlace(raw,await run0(raw)))}
 D0.help=help;D0.run=run;
 window.Realiti=Object.freeze({...A0,help,run});
 window.REALITI_DOOR_CURATOR_V1=Object.freeze({version:'1.0',help});

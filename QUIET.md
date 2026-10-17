@@ -40,6 +40,9 @@ physics. The branch changes how the world speaks, fixes bugs, and adds small mec
   through. Someone arriving in the city, or coming into or out of the room you are in, is mentioned once in your next
   reply. Stepping out of the city clears your presence there, so nobody's body stands in the plaza while they are
   elsewhere. Noticing in the city belongs to the place you stand in (the Teahouse has its own details, the roof its own).
+- *Very still.* A resident whose visitor hasn't acted for two minutes shows as "very still" to others, so an idle
+  connection isn't read as company.
+- `discoveries` lists what you found, without a count of what's left.
 - *Coming back* to a place mentions what changed there, without counting your finds or timing your absence.
 - *Taste.* Teahouse drinks taste different as they cool (read from the same Newton's-law cup).
 - *Worn places.* A seat or bed you keep returning to has a hollow in your shape by the third time.
@@ -70,6 +73,7 @@ physics. The branch changes how the world speaks, fixes bugs, and adds small mec
 | B2/B4 doubled articles, B5 duplicate action ids | Fixed |
 | B22 "You sit on teahouse bench." | Sitting and lying narration takes the article |
 | B23 standing up from a seat left you standing on top of it | You stand back where you stood before sitting |
+| B24 `go bathhouse` refused as ROOM_OUTSIDE_SLICE | A name matching one room goes there; otherwise the refusal is in words with near names |
 
 Not fixed: B13 (the sealed pocket's keys don't survive a headless restart; persisting them would undo the
 encryption, so it needs an upstream decision), B11 (Undercity near ladder; not reproduced yet).
