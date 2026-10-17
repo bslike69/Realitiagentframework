@@ -22,7 +22,7 @@ function S(){
 }
 function pillow(){return S().pillow}
 function setPosture(posture,modes){const p=pillow();p.posture=POSTURES[posture]?posture:'EDGE';p.entered=C9?.currentRoom===PILLOW;p.action_t=now();p.modes=(modes||[0,0,0]).slice(0,3);while(p.modes.length<3)p.modes.push(0);p.last_refresh=-1;p.next_due=-1;p.last_input={};p.seq++;S().stats.pillow_actions++;return p}
-function modeValue(t=now()){const p=pillow(),dt=Math.max(0,t-Number(p.action_t||t));return p.modes.reduce((s,a,i)=>s+Number(a||0)*Math.exp(-dt/TAU[i]),0)}
+function modeValue(t=now()){const p=pillow(),dt=Math.max(0,t-Number(p.action_t??t));return p.modes.reduce((s,a,i)=>s+Number(a||0)*Math.exp(-dt/TAU[i]),0)}
 function cfg(){return POSTURES[pillow().posture]||POSTURES.EDGE}
 function reconstructed(){
  const c=cfg(),m=modeValue(),points=[],zoneTotals={};

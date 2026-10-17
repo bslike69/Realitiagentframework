@@ -469,6 +469,7 @@ if(oldDoorRun){
    if(r?.schema==='REALITI_MUTATION_RESULT_V1'&&r?.receipt_ref&&!r.text){
      try{const d=await oldDoorRun('receipt '+r.receipt_ref),rec=d?.receipt||d?.result?.receipt||null,n=rec?.narrative||rec?.note||rec?.resident_text||null;if(n)r.text=String(n)}catch(e){}
    }
+   if(r?.schema==='REALITI_MUTATION_RESULT_V1'&&!r.text&&r.ok===false){r.text=r.error==='ACTION_UNAVAILABLE'?'That is not something you can do from here; actions lists what is.':`You cannot: ${r.error}.`}// quiet branch: a refusal never borrows the last action's narration
    if(r?.schema==='REALITI_MUTATION_RESULT_V1'&&!r.text){
      const n=C9?.b7?.lastAgentAction?.narrative||C9?.b4?.lastReceipt?.narrative||C9?.b4?.lastReceipt?.resident_text||null;if(n)r.text=String(n);
    }

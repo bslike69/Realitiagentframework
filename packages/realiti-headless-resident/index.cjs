@@ -126,6 +126,9 @@ async function openResident(options={}){
         Object.defineProperty(w,'localStorage',{value:backing,configurable:true});
       }
       if(options.residentId!==undefined)w.REALITI_RESIDENT_ID=String(options.residentId);
+      // Quiet branch: walks are bounded per call (B18). walkBudgetMs (or REALITI_WALK_BUDGET_MS) overrides the bound;
+      // Infinity restores upstream's unbounded walks, which the upstream test suites expect.
+      {const wb=options.walkBudgetMs??process.env.REALITI_WALK_BUDGET_MS;if(wb!==undefined&&wb!=='')w.REALITI_WALK_BUDGET_MS=Number(wb);}
       if(typeof options.beforeParse==='function')options.beforeParse(w);
     }
   });
@@ -140,6 +143,12 @@ async function openResident(options={}){
   const ready=await Realiti.ready;
   const harness=options.verify===false?null:verifyPublicEntry(Realiti,ready,{requireMechanisms:options.requireMechanisms!==false});
   const verifiedDoor=verifyAgentDoor(dom.window);
+  // Quiet branch: the world describes in words, announces nothing and hides lab benches by default. A host (or the
+  // upstream test suites) can ask for the original measured presentation with presentation:'measured' or
+  // REALITI_PRESENTATION=measured. Presentation only: simulation and evidence are the same either way.
+  if((options.presentation||process.env.REALITI_PRESENTATION)==='measured'){
+    for(const c of ['numbers on','discoveries on','neuro labs on'])await dom.window.REALITI_AGENT_DOOR.run(c);
+  }
   let closed=false;
 
   const door={

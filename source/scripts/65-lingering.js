@@ -8,7 +8,7 @@ const SANCT='NO_ASK_SANCTUARY',cp=x=>JSON.parse(JSON.stringify(x)),now=()=>Numbe
 const FIRST_TEN=['help','rooms','look','where','feel words','move forward 2','nearby','go BOTTOMLESS_PILLOW_SEA','act burrow','stay 4000'];
 
 // Sanctuary offers no actions. stay is the only verb; the floor holds you anyway (see REALITI_DYNAMICS_V1).
-const act0=b4AgentActions;b4AgentActions=function(){return C9?.currentRoom===SANCT?[]:act0()};
+const act0=b4AgentActions;b4AgentActions=function(){if(C9?.currentRoom===SANCT)return [];const seen=new Set();return act0().filter(a=>a&&!seen.has(a.id)&&seen.add(a.id))};// quiet branch: one entry per id (B5)
 
 // Felt delta: which grounded zones appeared or left since the last felt read.
 let lastFelt=null;
@@ -132,7 +132,7 @@ door.run=async function(raw){
    if(l==='calendar'||l==='read calendar'||l==='read the calendar')return {...PK.calendar(),felt:undefined};
    if((am=/^read\s+(.+)$/.exec(l))&&!/^read (scroll|stone|weather|tide|log|logbook|the (north|east|west)|north|east|west|calendar)/.test(l)){const res=AU.read(am[1]);if(res.error!=='NOTHING_CALLED_THAT')return say(res)}}
   if((am=/^row (?:to|toward|towards)\s+(.+)$/.exec(l))){const res=AR.row(am[1]);return reply(res,res.ok?`You row ${res.rowed_m} m; ${res.ashore?`the keel grinds on the shore of ${res.at}`:`${res.remaining_m} m to go`}.`:`You cannot row: ${res.error}.`)}
-  if((am=/^walk (?:to|toward|towards)\s+(.+)$/.exec(l))){const res=AR.walkTo(am[1]);return reply(res,res.ok?`You walk ${res.walked_m} m toward the ${res.entity_label}${res.arrived?' and reach it':res.why?`; ${res.why} is in the way${res.why==='the sea'?' (you need the boat)':''}`:`; ${res.distance_m} m further`}.`:`You cannot walk there: ${res.error}.`)}}
+  if((am=/^walk (?:to|toward|towards)\s+(.+)$/.exec(l))){const res=AR.walkTo(am[1]);return reply(res,res.ok?`You walk ${res.walked_m} m toward the ${res.entity_label}${res.arrived?' and reach it':res.why?`; ${res.why} is in the way${res.why==='the sea'?' (you need the boat)':''}`:res.partial?`; ${res.distance_m} m still to go (walk to ${am[1]} again to go on)`:`; ${res.distance_m} m further`}.`:`You cannot walk there: ${res.error}.`)}}
  const CT=window.REALITI_CITY_V1;if(CT){let cm;const cityReply=(res,extra)=>({ok:res.ok!==false,...(res.error?{error:res.error}:{}),schema:'REALITI_CITY_RESULT_V1',result:res,text:[res.text||(res.error?`You cannot: ${res.error}.`:''),...(window.REALITI_CATNIP_V1?.drain?.()||[]).map(d=>(d.plain?d.text:'✦ Discovery: '+d.text))].filter(Boolean).join(' '),...(C9?.currentRoom===CT.chart?{ambient:CT.words()[0]||null,here:whereText()}:{}),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}});
   if(l==='id'||l==='whoami'||l==='who am i'||l==='avatar')return CT.whoami();
   if((cm=/^(?:call me|name me|i am)\s+(.+)$/i.exec(s.trim())))return cityReply(CT.setAvatar('name',cm[1]));
@@ -174,6 +174,7 @@ door.run=async function(raw){
  const d=delta(felt0,grounded()),w=[...DYN.words(),...(window.REALITI_WONDER_V1?.words?.()||[]),...(window.REALITI_CATNIP_V1?.words?.()||[]),...(window.REALITI_ARCHIPELAGO_V1?.words?.()||[]),...(window.REALITI_LONG_GAME_V1?.words?.()||[]),...(window.REALITI_AUTHORSHIP_V1?.words?.()||[]),...(window.REALITI_CITY_V1?.words?.()||[])],after=JSON.stringify([C9?.b4?.lastReceipt,C9?.b7?.lastAgentAction]),stale=!r.receipt_ref&&after===marks,fresh=after!==marks?C9?.b4?.lastReceipt?.narrative:null;
  if(l==='stop')r.text='Everything touching you lets go. Whatever was already moving in your body is left to settle.';
  if(l==='save')r.text='Saved.';
+ if(/^(goodbye|bye|leave|exit)$/.test(l)){r.text='You go. Your things stay where you left them.';return r}// quiet branch (B21): no stale narration on the way out
  if(l==='stop'||l==='save')return r;
  if(/^(stay|wait)/.test(l)){r.ambient=w.slice();r.text=[...w.slice(0,2),d.text].filter(Boolean).join(' ');r.delta=d}
  else if(/^(go|enter)\s/.test(l)||l==='home'){const intro=String(r.result?.intro||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(),tr=foreign(true);r.text=[intro,...w,d.text].filter(Boolean).join(' ');if(tr.length){r.traces=rows(tr);r.text+=' '+traceText(tr)}const sc=window.REALITI_LONG_GAME_V1?.since?.();if(sc&&!sc.first_visit&&sc.away_world_s>=60){r.since=sc;r.text+=' '+sc.text}}

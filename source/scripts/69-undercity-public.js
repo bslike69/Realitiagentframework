@@ -11,6 +11,7 @@ function reckon(){const r=M.state().residents['resident:self'],c=M.charts()[U.ch
 function help(){const h=help0()||{commands:[]};h.commands=[...new Set([...(h.commands||[]),'clap','touch','pull lever','read wall','map'])];h.undercity='go UNDERCITY (the grate at the south-west of the Commons): no light. clap for sixteen echo delays, touch for what is in reach, listen and smell for water and air, map for what you have learned. The grate refuses anyone taller than 2.1 m.';return h}
 async function run(raw){const l=low(raw);
  if(inDark()){
+  if(/^(say|whisper|post)\s/.test(l))return {ok:false,error:'NO_ONE_HEARS_YOU_HERE',schema:'REALITI_UNDERCITY_RESULT_V1',text:'Your voice goes flat against the wet stone. Nobody up top can hear you from down here; come up to talk.'};// quiet branch (B10)
   if(l==='clap'||l==='clap hands')return reply(U.clap());
   if(l==='touch'||l==='feel around'||l==='reach out')return reply(U.touch());
   if(/^pull( the)?( lever)?$/.test(l))return reply(U.pull());
