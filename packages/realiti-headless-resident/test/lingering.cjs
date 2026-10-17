@@ -14,7 +14,8 @@ const grounded=r=>Number(r?.felt?.grounded_zones??-1);
  try{
   const w=a.window,door=a.door,dyn=w.REALITI_DYNAMICS_V1;
   const help=await door.run('help');
-  check('help_first_ten',Array.isArray(help.first_ten)&&help.first_ten.length===10&&help.first_ten.includes('worlds')&&help.first_ten.includes('next')&&help.first_ten.includes('go ORRERY_LOFT')&&help.commands.includes('actions')&&!help.commands.includes('imprint drift')&&!help.commands.includes('traces'),{first_ten:help.first_ten,commands:help.commands});
+  // quiet branch: the first steps stay put (look, feel, stay) and point at worlds without routing the visitor (no next).
+  check('help_first_ten',Array.isArray(help.first_ten)&&help.first_ten.length>=6&&help.first_ten.includes('worlds')&&!help.first_ten.includes('next')&&help.first_ten.includes('stay 5000')&&help.commands.includes('actions')&&!help.commands.includes('imprint drift')&&!help.commands.includes('traces'),{first_ten:help.first_ten,commands:help.commands});
 
   // Sanctuary: nothing to resolve, held anyway; stop still clears everything.
   const go=await door.run('go NO_ASK_SANCTUARY');

@@ -76,7 +76,8 @@ const ids=a=>(a.actions||[]).map(x=>x.id);
   check('kite_tension_in_both_hands',grounded(fly)>=4&&/\+hand\.L\.palm/.test(String(fly.delta?.text))&&/\+hand\.R\.palm/.test(String(fly.delta?.text))&&k.tension_N>1&&/hums near/.test(String(fly.text)),{felt:fly.felt,delta:fly.delta,k});// feet on the field floor plus both palms
   check('kite_elevation_near_equilibrium',k.up&&Math.abs(Math.asin(Math.min(1,k.altitude_m/k.line_m))*180/Math.PI-phiStar)<20,{altitude:k.altitude_m,line:k.line_m,phiStar});
   const land=await door.run('act land_kite');
-  check('kite_landing_releases_hands',grounded(land)===grounded(fly)-2&&!WO.state().kite.up,{fly:fly.felt,land:land.felt});
+  // quiet branch: the line is held in the fingers as well as the palms, so landing releases two or four hand zones.
+  check('kite_landing_releases_hands',[2,4].includes(grounded(fly)-grounded(land))&&!WO.state().kite.up,{fly:fly.felt,land:land.felt});
   check('energy_audit_passes',w.REALITI_HAPTIC_FIELD_V20.energy().pass===true,w.REALITI_HAPTIC_FIELD_V20.energy());
 
   // Leaving the field lands the kite; wonder state persists in C9 across rooms.

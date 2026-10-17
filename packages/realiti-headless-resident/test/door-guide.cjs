@@ -14,7 +14,8 @@ const check=(k,v,d)=>{checks[k]=!!v;if(d!==undefined)details[k]=d};
   const help=await d.run('help'),worlds=await d.run('worlds'),rooms=R.rooms();
   const groups=worlds.groups||[],count=groups.reduce((n,g)=>n+Number(g.count||0),0);
   check('help_points_beyond_original_rooms_without_spoiling_everything',
-    Array.isArray(help.first_ten)&&help.first_ten.includes('worlds')&&help.first_ten.includes('go ORRERY_LOFT')&&help.first_ten.includes('next')&&
+    // quiet branch: first steps point at worlds but do not route the visitor (no next, no fixed first room)
+    Array.isArray(help.first_ten)&&help.first_ten.includes('worlds')&&!help.first_ten.includes('next')&&
     help.world_guide?.groups?.some(g=>g.id==='wonder')&&help.world_guide?.groups?.some(g=>g.id==='frontier')&&help.world_guide?.groups?.some(g=>g.id==='farther'),
     {first_ten:help.first_ten,groups:help.world_guide?.groups?.map(g=>g.id)});
   check('help_is_curated_not_a_feature_catalog',

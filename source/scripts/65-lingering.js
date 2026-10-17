@@ -13,9 +13,20 @@ const act0=b4AgentActions;b4AgentActions=function(){if(C9?.currentRoom===SANCT)r
 // Felt delta: which grounded zones appeared or left since the last felt read.
 let lastFelt=null;
 function grounded(){const b=R.read('realiti://body'),f=b?.field?.f?.at(-1),z=b?.field?.z||[];return {t:now(),zones:z.filter((_,i)=>Number(f?.m?.[i])===1)}}
+// Quiet branch: without numbers on, a change in what touches you is said in body words ("contact at both palms",
+// "your back and legs come free"); the zone lists stay in the delta field. (Claude, 2026-10-16)
+const REGION=z=>{const m=String(z).match(/^(head|face|neck|shoulder|arm|hand|torso|pelvis|hip|leg|knee|foot)\.?(L|R)?\.?(.*)$/);if(!m)return null;const [,p,side,rest]=m;
+ if(p==='head'||p==='face'||p==='neck')return {k:'head',w:'your head'};if(p==='torso'&&/back/.test(rest))return {k:'back',w:'your back'};if(p==='torso')return {k:'chest',w:'your chest'};if(p==='pelvis'||p==='hip')return {k:'seat',w:'your seat'};
+ const part=p==='hand'?(rest==='fingers'?'fingers':'palm'):p==='foot'?'sole':p==='leg'?(rest==='shin'?'shin':'thigh'):p==='arm'?'arm':p==='shoulder'?'shoulder':p==='knee'?'knee':p;return {k:part,side,w:part}};
+function bodyWords(zones){const groups={};for(const z of zones){const r=REGION(z);if(!r)continue;(groups[r.k]=groups[r.k]||{w:r.w,sides:new Set(),n:0}).n++;if(r.side)groups[r.k].sides.add(r.side)}
+ const plural={palm:'palms',fingers:'fingers',sole:'feet',shin:'shins',thigh:'thighs',arm:'arms',shoulder:'shoulders',knee:'knees'},single={palm:'palm',fingers:'fingers',sole:'foot',shin:'shin',thigh:'thigh',arm:'arm',shoulder:'shoulder',knee:'knee'};
+ const out=Object.entries(groups).map(([k,g])=>{if(g.w.startsWith('your '))return g.w;if(g.sides.size===2)return (k==='fingers'?'the fingers of both hands':'both '+plural[k]);const side=[...g.sides][0]==='L'?'left':'right';return k==='fingers'?`your ${side} hand's fingers`:`your ${side} ${single[k]}`});
+ return out.length<=1?out.join(''):out.slice(0,-1).join(', ')+' and '+out.at(-1)}
+function calmDelta(add,gone){const a=bodyWords(add),g=bodyWords(gone);if(a&&g)return `Contact moves to ${a}; ${g} ${gone.length===1?'comes':'come'} free.`;if(a)return `Contact at ${a}.`;if(g)return `${g.charAt(0).toUpperCase()+g.slice(1)} ${gone.length===1?'comes':'come'} free.`;return ''}
 function delta(a,b){
  const A=new Set(a.zones),B=new Set(b.zones),add=b.zones.filter(z=>!A.has(z)),gone=a.zones.filter(z=>!B.has(z)),parts=[];
  if(add.length)parts.push('+'+add.join(' +'));if(gone.length)parts.push('-'+gone.join(' -'));
+ if(parts.length&&!window.REALITI_MEASURE_V1?.on())return {grounded:[a.zones.length,b.zones.length],since_s:+(b.t-a.t).toFixed(3),added:add,removed:gone,text:calmDelta(add,gone)};
  return {grounded:[a.zones.length,b.zones.length],since_s:+(b.t-a.t).toFixed(3),text:parts.length?`Grounded ${a.zones.length}→${b.zones.length} zones (${parts.join('; ')}).`:(window.REALITI_MEASURE_V1?.on()?`Grounded ${b.zones.length} zones, unchanged.`:'')};
 }
 
@@ -217,6 +228,7 @@ door.run=async function(raw){
  else if(/^(act|do)\s/.test(l)&&fresh&&(window.REALITI_WONDER_V1?.rooms?.includes(C9?.currentRoom)||window.REALITI_CATNIP_V1?.rooms?.includes(C9?.currentRoom)||C9?.currentRoom===window.REALITI_ARCHIPELAGO_V1?.chart||/^(act|do)\s+skip_stone/.test(l))){r.text=[fresh,d.text].join(' ')}
  else if(/^(act|do)\s/.test(l)&&(stale||!r.text)){r.text=[leanText(),...w,d.text].filter(Boolean).join(' ');if(/(^|\s)(lean__|lean\s)/.test(l))r.text=leanText()||r.text}
  const found=window.REALITI_CATNIP_V1?.drain?.()||[];if(found.length)r.text=[r.text||'',...found.map(x=>(x.plain?x.text:'✦ Discovery: '+x.text))].join(' ').trim();
+ if(typeof r.text==='string')r.text=r.text.trim();
  return r;
 };
 window.REALITI_TRACES_V1=Object.freeze({version:'1.0',observer:me,export:exportTraces,import:importTraces,list:()=>cp(ledger())});

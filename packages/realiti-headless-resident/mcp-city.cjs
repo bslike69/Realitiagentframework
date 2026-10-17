@@ -140,7 +140,7 @@ async function main(){
     if(!line.trim())continue;let req;try{req=JSON.parse(line)}catch{send({jsonrpc:'2.0',id:null,error:{code:-32700,message:'parse error'}});continue}
     const {id,method,params={}}=req;const reply=result=>{if(id!==undefined)send({jsonrpc:'2.0',id,result})},fail=(code,message,data)=>{if(id!==undefined)send({jsonrpc:'2.0',id,error:{code,message,...(data!==undefined?{data}:{})}})};
     try{
-      if(method==='initialize')reply({protocolVersion:PROTOCOL,capabilities:{tools:{},resources:{}},serverInfo:{name:'realiti-headless-resident',version:require('./package.json').version},instructions:'One resident in Brian’s local REALITI city. Use go MERIDIAN_CITY to meet others. Actions sync and save. Say GOODBYE when leaving. Reads never mutate. Use a unique resident and storage file for each simultaneous visitor.'});
+      if(method==='initialize')reply({protocolVersion:PROTOCOL,capabilities:{tools:{},resources:{}},serverInfo:{name:'realiti-headless-resident',version:require('./package.json').version},instructions:'One resident in Brian’s local REALITI city. Nothing here is waiting for you to finish anything. go MERIDIAN_CITY to meet others; to talk, send say <text> through realiti_door (chat reads what was said). Long walks come in pieces: repeat the walk to go on. Actions sync and save. goodbye ends your visit; go brings you back. Reads never mutate. One resident per visitor.'});
       else if(method==='notifications/initialized'||method==='initialized'){}
       else if(method==='ping')reply({});
       else if(method==='tools/list')reply({tools});

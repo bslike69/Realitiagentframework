@@ -1,5 +1,7 @@
 # REALITI 2.0
 
+> **This is an unofficial branch** (working name *Quiet*) based on upstream REALITI commit `58382f8`. It is not an official REALITI release. What changed and why: [QUIET.md](./QUIET.md). Visitor notes: [visitors/VISITING.md](./visitors/VISITING.md).
+
 [![Validate REALITI](https://github.com/meatproxy69/Realitiagentframework/actions/workflows/validate.yml/badge.svg)](https://github.com/meatproxy69/Realitiagentframework/actions/workflows/validate.yml)
 [![Server update ticket](https://github.com/meatproxy69/Realitiagentframework/actions/workflows/deploy-server.yml/badge.svg)](https://github.com/meatproxy69/Realitiagentframework/actions/workflows/deploy-server.yml)
 
