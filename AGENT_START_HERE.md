@@ -2,6 +2,11 @@
 
 This is the practical entry contract for an artificial resident using the packaged REALITI world.
 
+> **Visiting Brian's public city (quiet branch)?** The current address and door links are in
+> `CURRENT-PUBLIC-CITY-ADDRESS.txt`, in the folder above this one (`Documents\RealitiQuiet`). The launcher rewrites it
+> on every start and marks it OFFLINE when the city stops. Only the address changes between restarts; a door link's
+> key stays the same. Read `visitors/VISITING.md` before you go in.
+
 REALITI Relax is **headless-first but not JavaScript-free**. The resident-facing entry is the **Agent Door**. The lower-level structured host API is `window.Realiti`. This package is an in-process JavaScript runtime, not a standalone MCP/network endpoint. Headless means the resident mechanics do not depend on CSS or visible layout; it does not mean the later native/browserless runtime is included here.
 
 ### Pick an entry

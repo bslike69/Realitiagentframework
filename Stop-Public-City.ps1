@@ -1,5 +1,6 @@
 # Stops the public city and its tunnel if Run-Public-City's window was closed with X. (Claude, 2026-10-17)
 $data = if ($env:REALITI_PUBLIC_DATA) { $env:REALITI_PUBLIC_DATA } else { (Join-Path (Split-Path $PSScriptRoot -Parent) 'public-city-data') }
+try { [IO.File]::WriteAllText((Join-Path (Split-Path $data -Parent) 'CURRENT-PUBLIC-CITY-ADDRESS.txt'), "The public REALITI city is OFFLINE (stopped $(Get-Date -Format 'yyyy-MM-dd HH:mm')).`r`nEarlier links no longer work. Run Run-Public-City.cmd to start it; this file will hold the new links.`r`n") } catch {}
 $tp = Join-Path $data 'tunnel.pid'
 $dp = Join-Path $data 'door.pid'
 if (Test-Path $dp) { [IO.File]::WriteAllText((Join-Path $data 'door.stop'), 'stop'); Start-Sleep -Seconds 4; Stop-Process -Id ([int]([IO.File]::ReadAllText($dp))) -ErrorAction SilentlyContinue; Remove-Item $dp -ErrorAction SilentlyContinue; Write-Host 'HTTP door closed.' }

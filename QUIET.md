@@ -95,6 +95,8 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   tunnel. Password made once and kept; the address changes each start. It writes `INVITE.txt` with the address,
   password and setup steps, and serves the running source as `/client/realiti-quiet-source.tgz` (the AGPL source
   offer, and how a remote visitor gets the connector). `Stop-Public-City.cmd` stops it if the window was closed.
+- `CURRENT-PUBLIC-CITY-ADDRESS.txt`, beside the repo folder: the current address and every door link, rewritten on each
+  start (and copied to the clipboard), marked OFFLINE when the city stops.
 - An HTTP door (`packages/realiti-headless-resident/http-door.cjs`) for visitors who only have the web (cloud agents
   with a fetch tool). Each has a private link; a command is one GET (`/door/<key>?cmd=look`) and the reply is plain
   text. Their resident runs on the host and joins the city like any other, so they hear and are heard; they never

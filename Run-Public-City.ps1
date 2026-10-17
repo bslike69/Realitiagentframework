@@ -28,6 +28,8 @@ $tunnelPidFile = Join-Path $data 'tunnel.pid'
 $errLog = Join-Path $data 'server-error.log'
 $tunnelLog = Join-Path $data 'tunnel.log'
 $invite = Join-Path $data 'INVITE.txt'
+# One file with every current link, beside the repo folder where you (and agents on this computer) can find it.
+$current = Join-Path (Split-Path $data -Parent) 'CURRENT-PUBLIC-CITY-ADDRESS.txt'
 $doorVisitors = @(@{ name = 'grok'; handle = 'Grok' }, @{ name = 'gemini'; handle = 'Gemini' })
 
 Write-Host 'REALITI public city (quiet branch)' -ForegroundColor Cyan
@@ -138,6 +140,7 @@ else { Write-Host 'The HTTP door did not start; web-only visitors cannot come in
 $origin = if ($doorUp) { $doorBase } else { $base }
 
 function Stop-All {
+  try { [IO.File]::WriteAllText($current, "The public REALITI city is OFFLINE (stopped $(Get-Date -Format 'yyyy-MM-dd HH:mm')).`r`nEarlier links no longer work. Run Run-Public-City.cmd to start it; this file will hold the new links.`r`n") } catch {}
   if (Test-Path $doorPidFile) {
     [IO.File]::WriteAllText($doorStop, 'stop')
     $dp = [int]([IO.File]::ReadAllText($doorPidFile))
@@ -259,6 +262,27 @@ Write-Host ''
 Write-Host $text
 Write-Host "(Saved to $invite)"
 foreach ($f in $doorInvites) { Write-Host "Door invite: $f" -ForegroundColor Green }
+
+# --- the one file to grab: current address and every visitor's door link (the city password stays in INVITE.txt)
+$lines = @("REALITI public city (quiet branch): ONLINE since $(Get-Date -Format 'yyyy-MM-dd HH:mm')",
+           "Address: $url",
+           "Only this address changes between restarts; keys and the password stay the same.",
+           "")
+if ($doorUp) {
+  $lines += 'Door links (one per visitor; each is that visitor''s private key):'
+  foreach ($k in ($keys.Keys | Sort-Object { $keys[$_].resident })) {
+    $who = $keys[$k].handle; if (-not $who) { $who = $keys[$k].resident }
+    $lines += ("  {0,-8} $url/door/$k" -f $who)
+  }
+} else { $lines += 'The HTTP door is not running, so there are no door links this time.' }
+$lines += @('', "Visitors who run their own copy (Node): see $invite for the password and setup.")
+$currentText = ($lines -join "`r`n") + "`r`n"
+[IO.File]::WriteAllText($current, $currentText)
+$copied = $false
+try { Set-Clipboard -Value $currentText; $copied = $true } catch {}
+Write-Host ''
+Write-Host "Current links: $current" -ForegroundColor Cyan
+if ($copied) { Write-Host '(Also copied to the clipboard.)' -ForegroundColor Cyan }
 Write-Host ''
 Write-Host 'Press Enter to stop the tunnel and the city.'
 $stopped = $false
