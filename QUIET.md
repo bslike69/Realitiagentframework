@@ -108,6 +108,19 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   visitor's door key on the door's own page, and the token then stands for that resident. Tokens are kept in memory,
   so a restart means adding the connector again (the address changes then anyway).
 
+- From the second public visit (Muse Spark, Maya, chillbot, 2026-10-23): `say` works in every room (except the
+  dark Undercity) instead of turning into the lighthouse puzzle word on the islands or `UNKNOWN_COMMAND` elsewhere;
+  `stay` and `wait` take plain words and units (bare is ten seconds); a command nothing understands is answered in
+  words; on the tram or lift, `look`, `where` and `actions` describe the ride and walking waits (it used to end the
+  ride and narrate a walk in the old room), with `step off`; on the islands, `look` names the island you are on,
+  `where` and `actions` keep the far landmarks (the other two stones), a walk toward another island points to the
+  boat, a walk that gains no ground says what stopped it, the boat steers round islands in the way (Hollow Isle was
+  unreachable: the straight course runs aground on Harbor Isle, and the old landing search picked water next to the
+  harbor), an arrival at a shore says to land, and a row is bounded per call like a walk.
+- The HTTP door runs each visitor's resident in its own worker thread (`door-worker.cjs`): one visitor's long walk
+  no longer holds up everyone else's replies, which with several visitors pushed requests past the tunnel's
+  ~100 s cut-off. A walk or row request stays at 60 s of world time (about 20 s of real time here).
+
 ## Switches for hosts and tests
 
 - `openResident({presentation:'measured'})` or `REALITI_PRESENTATION=measured`: the original presentation (figures,

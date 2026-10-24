@@ -19,8 +19,6 @@
 //   DOOR_PUBLIC_URL_FILE (a file holding the public address, for the links in the instructions),
 //   DOOR_IDLE_MINUTES (30): an idle resident is saved and closed (no goodbye; the next command resumes where it stood).
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-const {openResident}=require('./index.cjs');
-const {joinCity}=require('./peer.cjs');
 
 const ROOT=path.resolve(__dirname,'..','..');
 const cfg={
@@ -36,45 +34,21 @@ const log=(...a)=>console.log(new Date().toISOString(),...a);
 function keys(){try{return JSON.parse(fs.readFileSync(cfg.keys,'utf8'))}catch{return {}}}
 function findKey(k){if(!k)return null;const ks=keys();for(const [key,v] of Object.entries(ks)){const a=Buffer.from(String(k)),b=Buffer.from(key);if(a.length===b.length&&crypto.timingSafeEqual(a,b))return {key,...v}}return null}
 
-// --- one visitor's resident, the same lifecycle as mcp-city.cjs (no goodbye on close; a goodbye ends the visit and the
-// next command opens a fresh one; sync after every command; messages that arrive with the sync are delivered).
+// --- one visitor's resident, each in its own worker thread (door-worker.cjs), so visitors never wait on each other.
+const {Worker}=require('node:worker_threads');
 const sessions=new Map();
-function Session(v){
-  this.v=v;this.s=null;this.city=null;this.chain=Promise.resolve();this.last=Date.now();this.departedHere=false;
-  this.storage=path.join(cfg.residents,v.resident.replace(/[^\w.-]/g,'_')+'.json');
-}
-Session.prototype.open=async function(){
-  const fresh=!fs.existsSync(this.storage);fs.mkdirSync(cfg.residents,{recursive:true});
-  this.s=await openResident({htmlPath:cfg.html,residentId:this.v.resident,storagePath:this.storage,walkBudgetMs:cfg.walkMs});
-  if(fresh&&this.v.handle){try{await this.s.door.run('call me '+this.v.handle)}catch{}}
-  log('opened',this.v.resident);
+function Session(v){this.v=v;this.last=Date.now();this.w=null;this.pending=new Map();this.n=0}
+Session.prototype.worker=function(){
+  if(this.w)return this.w;
+  const w=new Worker(path.join(__dirname,'door-worker.cjs'),{workerData:{v:this.v,cfg:{city:cfg.city,password:cfg.password,html:cfg.html,residents:cfg.residents,walkMs:cfg.walkMs}}});
+  w.on('message',m=>{if(m.log)return log(m.log);const p=this.pending.get(m.id);if(!p)return;this.pending.delete(m.id);m.error?p.reject(Object.assign(new Error(m.error),{code:m.code})):p.resolve(m.result)});
+  const dead=e=>{if(this.w!==w)return;this.w=null;for(const p of this.pending.values())p.reject(e instanceof Error?e:new Error('resident thread stopped ('+e+')'));this.pending.clear();log('thread ended',this.v.resident,String(e&&e.message||e))};
+  w.on('error',dead);w.on('exit',c=>dead(c));
+  return this.w=w;
 };
-Session.prototype.connect=async function(){if(!this.city)this.city=await joinCity(this.s.window,cfg.city,{password:cfg.password})};
-Session.prototype.leave=async function(){const c=this.city;this.city=null;if(c){try{await c.leave()}catch{}}};
-Session.prototype.sync=async function(){
-  const once=async()=>{const r=await this.city.resync();if(r.pushed.rejected||r.pulled.rejected)throw Error('Ledger records rejected');await this.city.publish()};
-  try{await once()}catch(e){if(!/fetch failed/i.test(String(e&&e.message||e))&&!['SEQUENCE_GAP','REPLAY','NO_SUCH_LEASE','EXPIRED'].includes(e&&e.code))throw e;await new Promise(r=>setTimeout(r,250));await this.city.rejoin();await once()}
-};
-Session.prototype.here=function(){try{return this.s.window.Realiti.read('realiti://here')}catch{return {}}};
-Session.prototype.run=function(cmd){const p=this.chain.then(()=>this.run0(cmd));this.chain=p.catch(()=>{});return p};
-Session.prototype.run0=async function(cmd){
-  this.last=Date.now();
-  if(!this.s)await this.open();
-  if(this.departedHere){this.departedHere=false;await this.leave();this.s.close();await this.open()}
-  await this.connect();
-  const wasActive=this.here().session!=='ended';
-  if(/^(chat|messages|chat log)$/i.test(cmd)){try{await this.sync()}catch{}}
-  let result=await this.s.door.run(cmd);let late=[];
-  try{
-    this.s.window.c9saveNow();this.s.window.REALITI_SLICE_STORAGE.save();
-    if(this.here().session==='ended'){if(wasActive)this.departedHere=true;await this.leave()}
-    else{await this.sync();if(!this.s.window.REALITI_MEASURE_V1?.on?.()){late=this.s.window.REALITI_CITY_V1?.hear?.()||[];if(late.length)this.s.window.c9saveNow()}}
-  }catch(e){result={...(result&&typeof result==='object'?result:{text:String(result)}),city_sync:{ok:false,error:String(e.message||e),note:'Your action happened; only the city sync failed. Do not repeat it.'}}}
-  if(late.length&&result&&typeof result==='object')result={...result,heard:[...(result.heard||[]),...late],text:(result.text?String(result.text)+'\n\n':'')+late.map(x=>x.line).join('\n')};
-  if(result&&result.error==='SESSION_ENDED')result={...result,hint:`This visit has ended (you said goodbye). To come back in: go ${this.here().room?.id||'MERIDIAN_CITY'}`};
-  return result;
-};
-Session.prototype.close=async function(){if(!this.s)return;try{await this.chain}catch{}await this.leave();try{this.s.close()}catch{}this.s=null;log('closed',this.v.resident)};
+Session.prototype.call=function(op,cmd){const id=++this.n,w=this.worker();return new Promise((resolve,reject)=>{this.pending.set(id,{resolve,reject});w.postMessage({id,op,cmd})})};
+Session.prototype.run=function(cmd){this.last=Date.now();return this.call('run',cmd)};
+Session.prototype.close=async function(){const w=this.w;if(!w)return;try{await this.call('close')}catch{}try{await w.terminate()}catch{}if(this.w===w)this.w=null};
 setInterval(()=>{for(const [k,se] of sessions){if(Date.now()-se.last>cfg.idleMs){sessions.delete(k);se.close()}}},60000).unref();
 
 function sessionFor(v){
@@ -268,6 +242,7 @@ const server=http.createServer(async(req,res)=>{
   // Keep each request short enough for fetch tools and the tunnel: bound stays here (walks are bounded per call).
   // The bare body read is a field of numbers; over a text door the words read is what's useful.
   const bareFeel=/^feel$/i.test(cmd)&&url.searchParams.get('format')!=='json';if(bareFeel)cmd='feel words';
+  {const u=/^(?:stay|wait)\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(s|secs?|seconds?|m|mins?|minutes?)$/i.exec(cmd);if(u)cmd=`stay ${Math.round(Number(u[1])*(/^m/i.test(u[2])?60000:1000))}`}// units, so the cap below sees them
   const st=/^stay\s+(\d+)/i.exec(cmd);if(st&&Number(st[1])>cfg.maxStayMs)cmd=`stay ${cfg.maxStayMs}`;
   const t0=Date.now();
   try{

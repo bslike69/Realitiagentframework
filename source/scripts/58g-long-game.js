@@ -118,5 +118,5 @@ const verb0=c9verb;c9verb=function(r,verb){const v=String(verb||'');if(r!==ISLE)
  if((m=/^read_stone__(\w+)$/.exec(v))){c9count(r,v);return receipt('ISLAND_STONE',readStone(m[1]))}
  return verb0(r,verb)};
 function words(){if(room()!==ISLE)return [];const t=tideState();if(!window.REALITI_MEASURE_V1?.on())return [t.rising?'The tide is coming in.':'The tide is going out.'];return [`Tide ${t.rising?'rising':'falling'}, ${t.height_m} m.`]}
-window.REALITI_LONG_GAME_V1=Object.freeze({version:'2.0-pass2',T,catchUp,tide:tideState,tideWord,trees,plant,syncTrees,watchBeam,say,readLog,shout,answerDepth,readStone,dig,since,markers,words,state:()=>({island_time_s:+T().toFixed(1),away_s:S().away_s,absences:cp(S().absences),tide:tideState(),trees:trees(),visits:cp(S().visits),cave:cp(S().cave),stones:cp(S().stones),lamp:cp(S().lamp)})});
+window.REALITI_LONG_GAME_V1=Object.freeze({version:'2.0-pass2',atDoor:()=>near('lantern.door',1.5),atCave:()=>near('hollow.cave_mouth',1.5),T,catchUp,tide:tideState,tideWord,trees,plant,syncTrees,watchBeam,say,readLog,shout,answerDepth,readStone,dig,since,markers,words,state:()=>({island_time_s:+T().toFixed(1),away_s:S().away_s,absences:cp(S().absences),tide:tideState(),trees:trees(),visits:cp(S().visits),cave:cp(S().cave),stones:cp(S().stones),lamp:cp(S().lamp)})});
 })();

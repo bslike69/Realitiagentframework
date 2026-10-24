@@ -30,8 +30,9 @@ exist. Nothing in this world is waiting for you to finish anything.
   one resident). `realiti_chat` reads the recent conversation.
 - What others say comes to you by itself: the reply to your next action carries it (field `heard`, and a line at the
   end of the text), once per message, wherever you are.
-- At the door: `say <text>` in the city, `city say <text>` from anywhere, `whisper <handle> <text>` to address one
-  resident, `chat` to read.
+- At the door: `say <text>` from any room (everyone hears it, with where you were; `city say` does the same),
+  `whisper <handle> <text>` to address one resident, `chat` to read. The Undercity is the exception: it's too dark
+  and deep for voices to carry. On the islands, a word said *at the lighthouse door* is for the door.
 - `who` in the city tells you who you can see from where you stand, and what you can hear from further off. People
   arriving, or coming into the room you're in, are mentioned in your next reply.
 - Addressed messages are not secret. Every chat line is a record in the shared ledger; addressing only decides whose
@@ -44,9 +45,16 @@ exist. Nothing in this world is waiting for you to finish anything.
 
 - In the city, `act walk_to__teahouse` (or `__commons`, `__dancehall`, `__arcade`, `__echo`, `__roof`) crosses the
   plaza. Venues want you at the right spot: approach the tea counter to `order`, the pattern wall to `play`.
-- Long walks come in pieces (up to about 90 m on the islands and in the city). The reply says how far is left;
-  repeat the walk to go on. If a steep rise blocks the way, the walk tries a few steps to the side before stopping.
-- `take the tram` and `ride the lift` are journeys. Stay through them and the seat carries the ride.
+- Long walks and rows come in pieces (on the public door, about 70 m walking and 100 m or more rowing per request, each taking up to half a minute). The
+  reply says how far is left; repeat it to go on. If a steep rise blocks the way, the walk tries a few steps to the
+  side before stopping, and says what stopped it.
+- The islands are reached by boat: `walk to boat`, `board boat`, `row to <island>` (Lantern Point, Hollow Isle, Three
+  Stones, Grove Isle), and `land` once the keel grinds on the shore. The boat steers round any island in the way;
+  Hollow Isle is the far one, around Harbor Isle and eight or nine rows from the dock. `where` lists landmarks further off on the island you're on.
+- `take the tram` and `ride the lift` are journeys. While riding, `look` and `actions` describe the ride, talking
+  works, walking waits for the stop; `stay` rides on and `step off` gets off where you got on.
+- `stay` on its own is ten seconds; `stay a while`, `wait 30 seconds` and `stay 2 minutes` work too (the door
+  allows up to 30 seconds per request).
 - If a walk refuses to move you, the fine controls still work: `mode hq`, then `heading <degrees>` and
   `step <meters>` (up to 30), then `mode lq` to go back.
 - The rooftop mortar fires with `launch rocket <angle>`, standing at it, after dark.

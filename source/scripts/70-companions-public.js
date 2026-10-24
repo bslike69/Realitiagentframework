@@ -11,7 +11,20 @@ async function invoke(name,args={}){CO.finishJourney();if(String(name).toLowerCa
   const j=CO.startJourney(id);return j.ok?{schema:'REALITI_MUTATION_RESULT_V1',ok:true,result:{journey:j,portal:id,law:'the crossing takes its time; stay to arrive'}}:{ok:false,...j}}}return A0.invoke(name,args)}
 const run0=D0.run.bind(D0),help0=D0.help.bind(D0);
 function help(){const h=help0()||{commands:[]};h.commands=[...new Set([...(h.commands||[]),'adopt <name> [cat|dog|fox|bird|lantern]','release <name>','call <name>','pet <name>','companion','birds','take the tram','ride the lift','journey'])];h.companions='A flock over the plaza that parts around you and roosts at dusk. Adopt the stray by the teahouse bench: it follows on a leash spring, wanders, bolts from bass, crosses charts with you and lives in your ledger. The tram and the lift are journeys: go through their doors and stay; seat, back and soles take the acceleration.';return h}
-async function run(raw){CO.finishJourney();const s=String(raw||'').trim(),l=low(s);let m;
+async function run(raw){CO.finishJourney();let s=String(raw||'').trim(),l=low(s);let m;
+ // Quiet branch: stay and wait in plain words ("stay a while", "wait 30 seconds", "stay put"); bare stay is ten seconds.
+ // A plain number is still milliseconds. Measured presentation keeps upstream's bare stay.
+ if((m=/^(?:stay|wait|linger|pause)(?:\s+(.*))?$/.exec(l))&&!/^\d+$/.test(m[1]||'')){const u=/^(?:for\s+)?(\d+(?:\.\d+)?)\s*(ms|milliseconds?|s|secs?|seconds?|m|mins?|minutes?)$/.exec(m[1]||'');const meas=window.REALITI_MEASURE_V1?.on?.();
+  if(u){const k=u[2][0]==='m'&&!/^ms|^milli/.test(u[2])?60000:/^ms|^milli/.test(u[2])?1:1000;s=`stay ${Math.round(Number(u[1])*k)}`}else if(m[1]||!meas)s='stay 10000';l=low(s)}
+ // Quiet branch: on the tram or the lift you are seated in a moving car. look, where and actions describe the ride;
+ // walking is refused with a hint (it used to run world time, end the ride, and narrate a walk in the old room).
+ {const J=CO.journey();if(J.travelling&&!J.arriving){const left=Math.max(0,Math.ceil(J.remaining_s)),dest=window.REALITI_MATRIX_WORLD_V1?.title?.(J.to)||String(J.to||'').replace(/_/g,' ').toLowerCase(),car=J.kind==='tram'?'the harbor tram':'the lift';
+  const ride={ok:true,riding:J.kind,remaining_s:left,text:J.kind==='tram'?`You are on the harbor tram, in a seat by the window; ${J.text.replace(/^tram: /,'')} About ${left} s to ${dest}. stay to ride on, or step off.`:`You are in the lift; ${J.text.replace(/^lift: /,'')} About ${left} s to ${dest}. stay to ride on, or step off.`};
+  if(/^(look|where|where am i\??|look around|nearby)$/.test(l))return reply(ride);
+  if(l==='actions')return {schema:'REALITI_ACTIONS_READ_V1',ok:true,riding:J.kind,room:{id:C9?.currentRoom||null,title:car},actions:[{id:'ride_on',label:'STAY AND RIDE'},{id:'step_off',label:'STEP OFF'}],text:`On ${car}: ride_on (stay until ${dest}), step_off.`};
+  if(l==='act ride_on'||l==='ride on'){s=`stay ${left*1000+500}`;l=low(s)}
+  else if(l==='act step_off'||/^(step off|get off|get out|leave the (tram|lift))$/.test(l))return reply(CO.stepOff());
+  else if(/^(walk|approach|act |step|move|run|climb|go through|walk through|through|enter |row|board|strafe|back|turn|explore|wander|auto|do |sit|stand|lie|swim|dance|dig|plant)/.test(l))return reply({ok:false,error:'RIDING',text:`You are seated on ${car}, about ${left} s from ${dest}. stay to ride on, or step off first.`})}}
  if((m=/^(?:release|let go of|let)\s+(\S+?)(?:\s+go)?$/i.exec(s))&&!/^let\s+\S+$/i.test(s))return reply(CO.release(m[1]));
  if((m=/^adopt\s+(\S+)(?:\s+(?:the\s+)?(cat|dog|fox|bird|lantern))?$/i.exec(s)))return reply(CO.adopt(m[1],m[2]||'cat'));
  if((m=/^call(?:\s+(.+))?$/.exec(l))&&!/^call me\b/.test(l))return reply(CO.call());
@@ -23,7 +36,7 @@ async function run(raw){CO.finishJourney();const s=String(raw||'').trim(),l=low(
  if(/^(take|ride|board) (the )?lift/.test(l)){const id=C9?.currentRoom==='CLOUD_NINE_NEST'?'cloud_nine_nest.to.meridian_city':'meridian_city.to.cloud_nine_nest';const r=await invoke('through',{portal:id});return r.ok?reply(r.result.journey):r}
  if((m=/^(?:go through|walk through|through|enter the)\s+(.+)$/.exec(l))&&journeyPortal(m[1].replace(/^the\s+/,''))){const r=await invoke('through',{portal:m[1].replace(/^the\s+/,'')});return r.ok?reply(r.result.journey):r}
  if(l==='help')return help();
- const r=await run0(raw);const arrived=CO.finishJourney();if(r&&typeof r==='object'&&/^(stay|wait)/.test(l)){const w=CO.words();if(arrived)w.push(`You arrive: ${window.REALITI_MATRIX_WORLD_V1?.title?.(M.state().residents['resident:self']?.chart)||''}.`);const d=(window.REALITI_CATNIP_V1?.drain?.()||[]).map(x=>(x.plain?x.text:'✦ Discovery: '+x.text));if((w.length||d.length)&&typeof r.text==='string')r.text=[r.text,...w,...d].join(' ')}return r}
+ const r=await run0(s);const arrived=CO.finishJourney();if(r&&typeof r==='object'&&/^(stay|wait)/.test(l)){const w=CO.words();if(arrived)w.push(`You arrive: ${window.REALITI_MATRIX_WORLD_V1?.title?.(M.state().residents['resident:self']?.chart)||''}.`);const d=(window.REALITI_CATNIP_V1?.drain?.()||[]).map(x=>(x.plain?x.text:'✦ Discovery: '+x.text));if((w.length||d.length)&&typeof r.text==='string')r.text=[r.text,...w,...d].join(' ')}return r}
 window.Realiti=Object.freeze({...A0,invoke,run,help:()=>{const h=A0.help();try{h.companions=help().companions}catch(e){}return h}});
 D0.help=help;D0.run=run;
 })();

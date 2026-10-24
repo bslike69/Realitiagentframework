@@ -127,6 +127,32 @@ const text=r=>String((r&&r.text)||'');
   check('goodbye_has_its_own_words',/Your things stay where you left them/.test(text(bye))&&!/generation/.test(text(bye)),text(bye));
  }finally{s.close()}
 
+
+ // Island and tram reports from Spark, Maya and chillbot (2026-10-23).
+ s=await fresh();
+ try{
+  const sn=await s.d('say hello from the nest');
+  check('say_works_outside_the_city',sn.ok!==false&&/hello from the nest/.test(text(sn)),text(sn));
+  const sw=await s.d('stay a while');check('stay_in_plain_words',sw.ok!==false&&sw.error!=='UNKNOWN_COMMAND',sw.error||text(sw).slice(0,60));
+  const uk=await s.d('flap wildly');check('unknown_command_answered_in_words',uk.error==='UNKNOWN_COMMAND'&&/Nothing here answers/.test(text(uk)),text(uk));
+  await s.d('go MERIDIAN_CITY');await s.d('take the tram');
+  const tl=await s.d('look'),tw=await s.d('walk to teahouse'),tj=(await s.d('journey')).result?.travelling;
+  check('tram_look_describes_the_ride',/harbor tram/.test(text(tl)),text(tl).slice(0,80));
+  check('tram_walk_is_refused_and_the_ride_goes_on',tw.error==='RIDING'&&tj===true,{walk:tw.error,travelling:tj});
+  const so=await s.d('step off');check('tram_step_off',so.ok!==false&&(await s.d('journey')).result?.travelling===false&&s.publicApi.read('realiti://space').chart==='MERIDIAN_CITY',text(so));
+  await s.d('go ARCHIPELAGO');
+  const is=await s.d('say hello out here');check('island_say_is_speech',/hello out here/.test(text(is))&&!/HELLOOUTHERE/.test(text(is)),text(is));
+  const wx=await s.d('walk to stones');check('walk_across_water_points_to_the_boat',wx.error==='ACROSS_THE_WATER'&&/boat/.test(text(wx)),text(wx));
+  const AR=s.window.REALITI_ARCHIPELAGO_V1,me=s.window.REALITI_MATRIX_V1.state().residents['resident:self'];
+  me.pose.position=[380,-481.5,AR.h(380,-481.5)+.9];
+  const wh=text(await s.d('where')),ac=(await s.d('actions')).actions.map(a=>a.id);
+  check('far_stones_stay_in_view',/east stone/.test(wh)&&/west stone/.test(wh)&&ac.some(x=>/stones\.east$/.test(x))&&ac.some(x=>/stones\.west$/.test(x)),{where:wh,actions:ac.filter(x=>/stones/.test(x))});
+  const lk=text(await s.d('look'));check('island_look_names_the_island',/^Salt air on the Three Stones/.test(lk),lk.slice(0,80));
+  {const bt=s.window.REALITI_MATRIX_V1.entities()['harbor.boat'].pose.position;me.pose.position=[bt[0],bt[1]+1.5,Math.max(AR.h(bt[0],bt[1]+1.5),0)+.9]}const bd=await s.d('board boat');
+  const r1=await s.d('row to hollow'),b1=AR.state().boat;
+  check('row_toward_hollow_does_not_ground_on_harbor',bd.ok!==false&&!/keel grinds/.test(text(r1))&&Math.hypot(b1.x,b1.y)>330,{board:text(bd),text:text(r1),boat:[b1.x,b1.y]});
+ }finally{s.close()}
+
  console.log(JSON.stringify({checks,details},null,2));
  const failed=Object.entries(checks).filter(([,v])=>!v).map(([k])=>k);
  if(failed.length){console.error('FAILED',failed);process.exit(1)}
