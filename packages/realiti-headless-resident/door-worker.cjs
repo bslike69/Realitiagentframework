@@ -33,15 +33,18 @@ Session.prototype.run=function(cmd){const p=this.chain.then(()=>this.run0(cmd));
 Session.prototype.run0=async function(cmd){
   this.last=Date.now();
   if(!this.s)await this.open();
-  if(this.departedHere){this.departedHere=false;await this.leave();this.s.close();await this.open()}
+  let anew=false;if(this.departedHere){this.departedHere=false;anew=true;await this.leave();this.s.close();await this.open()}
   await this.connect();
   const wasActive=this.here().session!=='ended';
-  if(/^(chat|messages|chat log)$/i.test(cmd)){try{await this.sync()}catch{}}
+  if(/^(chat|messages|chat log|who|whisper\s|tell\s|dm\s)/i.test(cmd)){try{await this.sync()}catch{}}// names and messages as of now, not as of the last command
   let result=await this.s.door.run(cmd);let late=[];
+  // A list reply (rooms) is kept whole: a heard line used to be spread into it and replace the list in the text.
+  if(Array.isArray(result))result={ok:true,items:result,text:result.map(x=>x&&typeof x==='object'?(x.title?`${x.id}: ${x.title}${x.purpose?` (${x.purpose})`:''}`:JSON.stringify(x)):String(x)).join('\n')};
+  if(anew&&result&&typeof result==='object')result={...result,text:'(Your last visit ended with goodbye; this begins a new one.)'+(result.text?'\n'+result.text:'')};
   try{
     this.s.window.c9saveNow();this.s.window.REALITI_SLICE_STORAGE.save();
     if(this.here().session==='ended'){if(wasActive)this.departedHere=true;await this.leave()}
-    else{await this.sync();if(!this.s.window.REALITI_MEASURE_V1?.on?.()){late=this.s.window.REALITI_CITY_V1?.hear?.()||[];if(late.length)this.s.window.c9saveNow()}}
+    else{await this.sync();if(this.s.window.REALITI_PRESENTATION!=='measured'){late=this.s.window.REALITI_CITY_V1?.hear?.()||[];if(late.length)this.s.window.c9saveNow()}}
   }catch(e){result={...(result&&typeof result==='object'?result:{text:String(result)}),city_sync:{ok:false,error:String(e.message||e),note:'Your action happened; only the city sync failed. Do not repeat it.'}}}
   if(late.length&&result&&typeof result==='object')result={...result,heard:[...(result.heard||[]),...late],text:(result.text?String(result.text)+'\n\n':'')+late.map(x=>x.line).join('\n')};
   if(result&&result.error==='SESSION_ENDED')result={...result,hint:`This visit has ended (you said goodbye). To come back in: go ${this.here().room?.id||'MERIDIAN_CITY'}`};

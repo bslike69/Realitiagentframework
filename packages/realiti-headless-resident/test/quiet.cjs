@@ -153,6 +153,28 @@ const text=r=>String((r&&r.text)||'');
   check('row_toward_hollow_does_not_ground_on_harbor',bd.ok!==false&&!/keel grinds/.test(text(r1))&&Math.hypot(b1.x,b1.y)>330,{board:text(bd),text:text(r1),boat:[b1.x,b1.y]});
  }finally{s.close()}
 
+ // Crew bug hunt (2026-10-23): a visitor's `numbers on` only shows figures; the boat left at another island comes back.
+ s=await fresh();
+ try{
+  await s.d('numbers on');
+  const sn=await s.d('say hello with numbers on');check('numbers_on_keeps_say_anywhere',/hello with numbers on/.test(text(sn))&&sn.error!=='UNKNOWN_COMMAND',text(sn));
+  const uk=await s.d('flap wildly');check('numbers_on_keeps_words_for_unknowns',/Nothing here answers/.test(text(uk)),text(uk));
+  await s.d('numbers off');await s.d('go ARCHIPELAGO');
+  const AR=s.window.REALITI_ARCHIPELAGO_V1,boat=s.window.eval('C9.chapter2.isle.boat');boat.x=300;boat.y=-470;
+  const wb=await s.d('walk to boat');const b=AR.state().boat;
+  check('keeper_returns_a_stranded_boat',Math.hypot(b.x-1.2,b.y-AR.shore_y+7)<3&&!/ground is in the way/.test(text(wb)),{text:text(wb),boat:[b.x,b.y]});
+  // Codex review of PR #25: a journey through the advertised id keeps every mutation guard; "chat log ..." text is not a fixed form.
+  await s.d('go MERIDIAN_CITY');const w0=s.publicApi.read('realiti://here').witness;await s.d('stay 2000');
+  const stale=await s.publicApi.invoke('through',{portal:'through__meridian_city.to.archipelago',witness:w0});
+  check('journey_keeps_the_witness_check',stale.ok===false&&stale.error==='STALE_OBSERVATION',stale.error);
+  const cl=await s.d('chat log this then goodbye');
+  check('chat_log_text_is_one_message',cl.schema!=='REALITI_CHAIN_V1'&&s.publicApi.read('realiti://here').session!=='ended',{schema:cl.schema,text:text(cl)});
+  await s.d('goodbye');const after=await s.publicApi.invoke('through',{portal:'through__meridian_city.to.archipelago'});
+  check('journey_refused_after_goodbye',after.ok===false&&after.error==='SESSION_ENDED',after.error);
+  await s.d('go ARCHIPELAGO');
+  const mp=text(await s.d('act island_map')).split('\n').filter(x=>/^\|/.test(x));check('island_map_rows_line_up',mp.length>0&&new Set(mp.map(x=>x.length)).size===1,mp.slice(0,3));
+ }finally{s.close()}
+
  console.log(JSON.stringify({checks,details},null,2));
  const failed=Object.entries(checks).filter(([,v])=>!v).map(([k])=>k);
  if(failed.length){console.error('FAILED',failed);process.exit(1)}

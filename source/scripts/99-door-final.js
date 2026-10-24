@@ -23,8 +23,9 @@ function help(){
   note:'The foyer is intentionally incomplete. Use actions where you stand; ask rooms only when you want the full catalog.'
  };
 }
-// Quiet branch: what others said since your last reply arrives with this one (once each). Off in measured presentation.
-function heard(r){const CT=window.REALITI_CITY_V1;if(!r||typeof r!=='object'||Array.isArray(r)||!CT?.hear||window.REALITI_MEASURE_V1?.on?.())return r;
+// Quiet branch: what others said since your last reply arrives with this one (once each). Off in measured presentation
+// (the host's choice, not a visitor's `numbers on`).
+function heard(r){const CT=window.REALITI_CITY_V1;if(!r||typeof r!=='object'||Array.isArray(r)||!CT?.hear||window.REALITI_PRESENTATION==='measured')return r;
  let xs=[];try{xs=CT.hear()}catch{}if(!xs.length)return r;
  const lines=xs.map(x=>x.line).join('\n');return {...r,heard:xs,text:(r.text?String(r.text)+'\n\n':'')+lines}}
 // Quiet branch: an unknown place gets an answer in words (the public layer strips the room module's own text).
@@ -33,7 +34,8 @@ function unknownPlace(raw,r){const m=/^(?:go|enter|go to)\s+(.+)$/i.exec(String(
  if(vk)return {...r,text:`${CT.venues[vk].label.replace(/^the /,'The ')} is in Meridian City: go MERIDIAN_CITY, then act walk_to__${vk}.`};
  const n=window.REALITI_ROOM_NEAR?.(want)||[];return {...r,...(n.length?{did_you_mean:n}:{}),text:`There is no place called "${m[1].trim()}"${n.length?`. Did you mean ${n.join(' or ')}?`:'. rooms lists every place.'}`}}
 // Quiet branch: a command nothing understands gets words, not a bare error object.
-function unknownWords(raw,r){if(!r||typeof r!=='object'||r.error!=='UNKNOWN_COMMAND'||r.text||window.REALITI_MEASURE_V1?.on?.())return r;return {...r,text:`Nothing here answers to "${String(raw||'').trim().slice(0,60)}". actions lists what you can do where you stand; help has the rest.`}}
+const NEEDS={say:'say <words>','city say':'city say <words>',shout:'shout <words>',whisper:'whisper <name> <words>',tell:'tell <name> <words>',go:'go <place>; rooms lists them',act:'act <action id>; actions lists them',heading:'heading <degrees>',walk:'walk to <landmark>',remember:'remember <words>'};
+function unknownWords(raw,r){if(!r||typeof r!=='object'||r.error!=='UNKNOWN_COMMAND'||r.text||window.REALITI_PRESENTATION==='measured')return r;const bare=String(raw||'').trim().toLowerCase();if(NEEDS[bare])return {...r,error:'NEEDS_MORE',text:`That needs more: ${NEEDS[bare]}.`};return {...r,text:`Nothing here answers to "${String(raw||'').trim().slice(0,60)}". actions lists what you can do where you stand; help has the rest.`}}
 async function run(raw){window.REALITI_LAST_ACT_WALL=Date.now();if(low(raw)==='help')return help();return heard(unknownWords(raw,unknownPlace(raw,await run0(raw))))}
 D0.help=help;D0.run=run;
 window.Realiti=Object.freeze({...A0,help,run});

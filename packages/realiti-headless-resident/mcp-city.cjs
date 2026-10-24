@@ -134,7 +134,7 @@ async function main(){
     await freshVisit();
     await connect();
     const wasActive=R.read('realiti://here').session!=='ended';
-    if(name==='realiti_chat'){try{await syncCity()}catch{}}
+    if(name==='realiti_chat'||(name==='realiti_say'&&args.to)||(name==='realiti_door'&&/^(who|whisper\s|tell\s|dm\s)/i.test(String(args.command||'')))){try{await syncCity()}catch{}}// names as of now
     // The door route below ignores "witness", so check it here the same way the invoke path does. (Claude, 2026-10-14)
     if(name==='realiti_act'&&args.witness){const w=R.read('realiti://here').witness;if(w&&String(args.witness)!==w)return {ok:false,error:'STALE_OBSERVATION',witness:w,law:'the world moved since you looked; read again and act on what is there now'}}
     // realiti_act goes through the Agent Door: invoke('do') drops the action's text (e.g. city_who returned only a
@@ -149,11 +149,12 @@ async function main(){
       if(R.read('realiti://here').session==='ended'){if(wasActive)departedHere=true;await leave();}
       else{await syncCity();late=lateHeard()}
     }catch(e){return hinted({...result,city_sync:{ok:false,error:String(e.message||e),note:'Local result preserved; do not repeat an action just because sync failed.'}})}
+    if(late&&late.length&&Array.isArray(result))return hinted({ok:true,items:result,heard:late,text:late.map(x=>x.line).join('\n')});// a list reply stays whole
     if(late&&late.length&&result&&typeof result==='object'){const heard=[...(result.heard||[]),...late];return hinted({...result,heard,text:(result.text?String(result.text)+'\n\n':'')+late.map(x=>x.line).join('\n')})}
     return hinted(result);
   }
   // Messages that came in with the sync after the action. The world marks each one heard, so nothing arrives twice.
-  function lateHeard(){try{if(s.window.REALITI_MEASURE_V1?.on?.())return null;const xs=s.window.REALITI_CITY_V1?.hear?.()||[];if(xs.length)s.window.c9saveNow();return xs}catch{return null}}
+  function lateHeard(){try{if(s.window.REALITI_PRESENTATION==='measured')return null;const xs=s.window.REALITI_CITY_V1?.hear?.()||[];if(xs.length)s.window.c9saveNow();return xs}catch{return null}}
   const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
   // A SIGTERM or Ctrl+C ends the request loop, so the finally block below still saves and records the departure.
   for(const sig of ['SIGTERM','SIGINT'])process.once(sig,()=>rl.close());

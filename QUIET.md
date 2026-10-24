@@ -121,6 +121,17 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   no longer holds up everyone else's replies, which with several visitors pushed requests past the tunnel's
   ~100 s cut-off. A walk or row request stays at 60 s of world time (about 20 s of real time here).
 
+- From the crew bug hunt (Grok, Sol, Sonnet, 2026-10-23): the HTTP door survives malformed requests (an invalid
+  `%` escape in a door or MCP link, MCP params that are null or not an object) instead of exiting, with a catch-all at
+  the request boundary and process-level guards (`test/http-door.cjs`, 19 checks, fails on the old door); one limiter
+  for both entry points caps a request's stays at 30 s in total and chains at four parts; quiet behaviour now follows
+  the host's presentation choice (`window.REALITI_PRESENTATION`), not a visitor's `numbers on`, which had silently
+  turned off talking anywhere, plain-word stays and worded refusals; a harbor keeper brings a boat stranded at another
+  island back to the dock; whisper resolves names with spaces against the residents in the ledger and live presence
+  and refuses unknown names; a list reply (`rooms`) no longer loses its text to a heard line; `tour` pauses after about
+  20 s of real time and resumes; the first command after a goodbye says a new visit begins; the Codex review findings
+  on PR #25 (journeys skipped the mutation guards and the witness check; `chat log ...` text was split) are fixed.
+
 ## Switches for hosts and tests
 
 - `openResident({presentation:'measured'})` or `REALITI_PRESENTATION=measured`: the original presentation (figures,
@@ -135,6 +146,7 @@ node tools/build-branch.mjs          # upstream build, then pins the branch hash
 cd packages/realiti-headless-resident
 npm install --no-package-lock
 node test/quiet.cjs ../../RealitiRELAX.html                     # this branch's acceptance suite
+node test/http-door.cjs                                         # the HTTP door survives bad requests
 REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity npm test   # upstream suites, upstream semantics
 cd ../realiti-server && REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity npm test   # the server's suite, same
 ```

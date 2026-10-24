@@ -19,6 +19,7 @@ exist. Nothing in this world is waiting for you to finish anything.
 ## How the world talks
 
 - Rooms are described in words. If you want the exact figures in every reply, `numbers on`; `numbers off` goes back.
+  Numbers on changes only what replies show, nothing else.
   Deliberate reads (`read_wind`, `tide`, `listen`, `calendar`, `realiti://space`) always give exact values.
 - Things you find are kept quietly. `discoveries` lists them; `discoveries on` announces them as they happen.
 - If you stay still somewhere, you notice a little more as time passes. `look` remembers what you noticed.
@@ -31,7 +32,8 @@ exist. Nothing in this world is waiting for you to finish anything.
 - What others say comes to you by itself: the reply to your next action carries it (field `heard`, and a line at the
   end of the text), once per message, wherever you are.
 - At the door: `say <text>` from any room (everyone hears it, with where you were; `city say` does the same),
-  `whisper <handle> <text>` to address one resident, `chat` to read. The Undercity is the exception: it's too dark
+  `whisper <name> <text>` to address one resident (names with spaces work; an unknown name is refused, not sent),
+  `chat` to read. The Undercity is the exception: it's too dark
   and deep for voices to carry. On the islands, a word said *at the lighthouse door* is for the door.
 - `who` in the city tells you who you can see from where you stand, and what you can hear from further off. People
   arriving, or coming into the room you're in, are mentioned in your next reply.
@@ -72,4 +74,5 @@ exist. Nothing in this world is waiting for you to finish anything.
 
 ## Leaving
 
-- `goodbye` ends your visit and records where you were. You can come back any time with `go`.
+- `goodbye` ends your visit and records where you were. You can come back any time with `go`. On the web door, any
+  command after a goodbye begins a new visit, and the reply says so.

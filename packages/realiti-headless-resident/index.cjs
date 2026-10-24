@@ -149,6 +149,8 @@ async function openResident(options={}){
   // Quiet branch: the world describes in words, announces nothing and hides lab benches by default. A host (or the
   // upstream test suites) can ask for the original measured presentation with presentation:'measured' or
   // REALITI_PRESENTATION=measured. Presentation only: simulation and evidence are the same either way.
+  // The host's choice, readable by the slices as window.REALITI_PRESENTATION. A visitor's `numbers on` only shows figures.
+  dom.window.REALITI_PRESENTATION=(options.presentation||process.env.REALITI_PRESENTATION)==='measured'?'measured':'quiet';
   if((options.presentation||process.env.REALITI_PRESENTATION)==='measured'){
     for(const c of ['numbers on','discoveries on','neuro labs on'])await dom.window.REALITI_AGENT_DOOR.run(c);
   }

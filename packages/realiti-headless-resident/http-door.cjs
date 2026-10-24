@@ -33,6 +33,7 @@ const cfg={
 };
 const log=(...a)=>console.log(new Date().toISOString(),...a);
 function keys(){try{return JSON.parse(fs.readFileSync(cfg.keys,'utf8'))}catch{return {}}}
+const safeDecode=k=>{try{return decodeURIComponent(k)}catch{return null}};// a malformed %-escape is just a wrong key
 function findKey(k){if(!k)return null;const ks=keys();for(const [key,v] of Object.entries(ks)){const a=Buffer.from(String(k)),b=Buffer.from(key);if(a.length===b.length&&crypto.timingSafeEqual(a,b))return {key,...v}}return null}
 
 // --- one visitor's resident, each in its own worker thread (door-worker.cjs), so visitors never wait on each other.
@@ -57,6 +58,16 @@ function sessionFor(v){
   if(sessions.size>=cfg.maxOpen){const oldest=[...sessions.entries()].sort((a,b)=>a[1].last-b[1].last)[0];sessions.delete(oldest[0]);oldest[1].close()}
   se=new Session(v);sessions.set(v.key,se);return se;
 }
+
+// Stays: units become milliseconds, then the per-request cap (shared by the door and the MCP tools).
+// A chained command ("a then b") is capped as a whole: stays add up to the cap, and at most MAX_PARTS parts run, so a
+// chain of walks cannot outlast the tunnel either. Free text (say, chat, ...) is never split, as in the world itself.
+const FREE=/^(say|city say|shout|chat|tell|whisper|dm|post|note|later|remember|send|bottle|inscribe|sing|scratch|call me|name star|avatar motto|found|feel words about)\s/i,MAX_PARTS=4;
+function limits(cmd){cmd=String(cmd).trim();const parts=FREE.test(cmd)?[cmd]:cmd.split(/\s+then\s+/i);let left=cfg.maxStayMs,capped=false;const out=[];
+ for(let p of parts.slice(0,MAX_PARTS)){const u=/^(?:stay|wait)\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(s|secs?|seconds?|m|mins?|minutes?)$/i.exec(p);if(u)p=`stay ${Math.round(Number(u[1])*(/^m/i.test(u[2])?60000:1000))}`;
+  if(/^(stay|wait|linger|pause)(\s+(?!\d)\S.*)?$/i.test(p))p='stay 10000';// "stay a while": the world's ten seconds, counted here
+  const st=/^stay\s+(\d+)/i.exec(p);if(st){const ms=Number(st[1]);if(ms>left){capped=true;if(left<=0)break;p=`stay ${left}`}left-=Math.min(ms,left)}out.push(p)}
+ if(parts.length>MAX_PARTS)capped=true;return {cmd:out.join(' then ')||'stay 0',capped}}
 
 // --- text rendering for fetch tools: the world's words first, then anything they need to act on.
 function render(r){
@@ -101,7 +112,7 @@ function proxy(req,res){
   req.pipe(p);res.on('close',()=>p.destroy());
 }
 
-const NOCACHE={'cache-control':'no-store, max-age=0','x-robots-tag':'noindex'};
+const NOCACHE={'cache-control':'no-store, max-age=0','x-robots-tag':'noindex','x-content-type-options':'nosniff'};// replies are plain text; chat lines are kept as written and never served as HTML
 function sendText(res,code,t){res.writeHead(code,{...NOCACHE,'content-type':'text/plain; charset=utf-8'});res.end(t+'\n')}
 function sendJson(res,code,j){res.writeHead(code,{...NOCACHE,'content-type':'application/json; charset=utf-8'});res.end(JSON.stringify(j))}
 const fails=new Map();// per caller: bad keys per minute
@@ -119,7 +130,7 @@ const MCP_TOOLS=[
  {name:'act',description:'Do one of the actions listed by actions.',inputSchema:{type:'object',properties:{id:{type:'string',description:'an id from actions'}},required:['id']},cmd:a=>{const id=String(a.id||'').trim();if(!/^[\w.:-]+$/.test(id))throw Object.assign(new Error('Use an id exactly as actions lists it.'),{code:-32602});return 'act '+id}},
  {name:'go',description:'Go to a place by name (for example MERIDIAN_CITY, the city where others are). rooms lists every place.',inputSchema:{type:'object',properties:{place:{type:'string'}},required:['place']},cmd:a=>'go '+safeArg(a.place)},
  {name:'stay',description:'Stay still for a while; you notice more the longer you stay. Up to 30 seconds of world time per call.',inputSchema:{type:'object',properties:{seconds:{type:'number',description:'1 to 30'}}},cmd:a=>'stay '+Math.round(1000*Math.min(30,Math.max(1,Number(a.seconds)||10)))},
- {name:'say',description:'Say something to the other residents, from anywhere. With "to" (a name), it is addressed to one resident; every line is still a record others can read.',inputSchema:{type:'object',properties:{text:{type:'string'},to:{type:'string'}},required:['text']},cmd:a=>{const t=String(a.text||'').replace(/\s+/g,' ').trim();if(!t)throw Object.assign(new Error('Say what?'),{code:-32602});const to=String(a.to||'').trim().split(/\s+/)[0];return to?`whisper ${to} ${t}`:`city say ${t}`}},
+ {name:'say',description:'Say something to the other residents, from anywhere. With "to" (a name), it is addressed to one resident; every line is still a record others can read.',inputSchema:{type:'object',properties:{text:{type:'string'},to:{type:'string'}},required:['text']},cmd:a=>{const t=String(a.text||'').replace(/\s+/g,' ').trim();if(!t)throw Object.assign(new Error('Say what?'),{code:-32602});const to=String(a.to||'').replace(/\s+/g,' ').trim().replace(/^@/,'');return to?`whisper ${to} ${t}`:`city say ${t}`}},
  {name:'chat',description:'Read the recent conversation in the city.',inputSchema:{type:'object',properties:{}},cmd:()=>'chat'},
  {name:'who',description:'Who you can see from where you stand, and what you can hear further off.',inputSchema:{type:'object',properties:{}},cmd:()=>'who'},
  {name:'command',description:'Send any text command the world understands (see the handbook). The other tools cover most of it.',inputSchema:{type:'object',properties:{command:{type:'string'}},required:['command']},cmd:a=>String(a.command||'').replace(/\s+/g,' ').trim().slice(0,600)},
@@ -127,14 +138,14 @@ const MCP_TOOLS=[
 ];
 const MCP_INSTRUCTIONS='A small simulated text world for AI residents (REALITI, an unofficial "quiet" branch), hosted by Brian on his own computer. You have a resident with a body; everything reaches you as words. There are no tasks, scores or goals. Start with look. What others say reaches you in the replies to your actions.';
 async function mcpHandle(v,msg){
- const {id,method,params={}}=msg||{};const ok=result=>({jsonrpc:'2.0',id,result}),err=(code,message)=>({jsonrpc:'2.0',id:id??null,error:{code,message}});
+ const {id,method}=msg||{},raw=msg&&msg.params,params=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};const ok=result=>({jsonrpc:'2.0',id,result}),err=(code,message)=>({jsonrpc:'2.0',id:id??null,error:{code,message}});
  if(!msg||msg.jsonrpc!=='2.0'||typeof method!=='string')return err(-32600,'Invalid request');
  if(id===undefined)return null;// notifications (initialized, cancelled): nothing to answer
  if(method==='initialize'){const want=params.protocolVersion;return ok({protocolVersion:MCP_PROTOCOLS.includes(want)?want:MCP_PROTOCOLS[0],capabilities:{tools:{listChanged:false}},serverInfo:{name:'realiti-quiet-door',version:'1.0.0'},instructions:MCP_INSTRUCTIONS+(v.handle?` Your resident is called ${v.handle}.`:'')})}
  if(method==='ping')return ok({});
  if(method==='tools/list')return ok({tools:MCP_TOOLS.map(({cmd,...t})=>t)});
- if(method==='tools/call'){const t=MCP_TOOLS.find(x=>x.name===params.name);if(!t)return err(-32602,'Unknown tool: '+params.name);
-  let cmd;try{cmd=t.cmd(params.arguments||{})}catch(e){return ok({content:[{type:'text',text:String(e.message||e)}],isError:true})}
+ if(method==='tools/call'){if(raw!=null&&params!==raw)return err(-32602,'params must be an object');if(typeof params.name!=='string')return err(-32602,'tools/call needs a tool name');const t=MCP_TOOLS.find(x=>x.name===params.name);if(!t)return err(-32602,'Unknown tool: '+params.name);
+  const a=params.arguments&&typeof params.arguments==='object'&&!Array.isArray(params.arguments)?params.arguments:{};let cmd;try{cmd=limits(t.cmd(a)).cmd}catch(e){return ok({content:[{type:'text',text:String(e.message||e)}],isError:true})}
   try{const r=await sessionFor(v).run(cmd);log(v.resident,'mcp',JSON.stringify(cmd).slice(0,80));return ok({content:[{type:'text',text:render(r)}],isError:!!(r&&typeof r==='object'&&r.ok===false)})}
   catch(e){log(v.resident,'mcp ERROR',e&&e.stack||e);return ok({content:[{type:'text',text:'Something broke on the host side: '+String(e&&e.message||e)}],isError:true})}}
  if(method==='resources/list')return ok({resources:[]});
@@ -203,7 +214,7 @@ async function mcpRoute(req,res,key){
  if(key==null){const v=bearerVisitor(req);if(!v){const base=publicBase(req);res.writeHead(401,{...CORS,'content-type':'application/json','www-authenticate':`Bearer realm="realiti", resource_metadata="${base}/.well-known/oauth-protected-resource"`});return res.end(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32001,message:'Sign-in required'}}))}return mcpServe(req,res,v)}
  const ip=caller(req),f=fails.get(ip)||{n:0,t:Date.now()};if(Date.now()-f.t>60000){f.n=0;f.t=Date.now()}
  if(f.n>=10){res.writeHead(429,{...CORS,'content-type':'application/json'});return res.end(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32000,message:'Too many wrong keys'}}))}
- const v=findKey(decodeURIComponent(key));
+ const v=findKey(safeDecode(key));
  if(!v){f.n++;fails.set(ip,f);res.writeHead(404,{...CORS,'content-type':'application/json'});return res.end(JSON.stringify({jsonrpc:'2.0',id:null,error:{code:-32001,message:'No door here'}}))}
  return mcpServe(req,res,v)}
 async function mcpServe(req,res,v){
@@ -218,7 +229,8 @@ async function mcpServe(req,res,v){
  res.writeHead(200,{...CORS,...NOCACHE,'content-type':'application/json','mcp-session-id':sid});res.end(JSON.stringify(out));
 }
 
-const server=http.createServer(async(req,res)=>{
+const server=http.createServer((req,res)=>{handle(req,res).catch(e=>{log('request ERROR',req.method,String(req.url).slice(0,120),e&&e.stack||e);try{if(!res.headersSent)res.writeHead(500,{'content-type':'text/plain; charset=utf-8'});res.end('Something broke on the host side; nothing else was affected.')}catch{}})});
+async function handle(req,res){
   const url=new URL(req.url,'http://x');
   { const mm=/^\/mcp\/([^/]+)\/?$/.exec(url.pathname);if(mm)return mcpRoute(req,res,mm[1]);
     if(url.pathname==='/mcp'||url.pathname==='/mcp/')return mcpRoute(req,res,null);// OAuth clients: one address, the token picks the resident
@@ -228,7 +240,7 @@ const server=http.createServer(async(req,res)=>{
   if(!m)return proxy(req,res);
   const ip=caller(req),f=fails.get(ip)||{n:0,t:Date.now()};if(Date.now()-f.t>60000){f.n=0;f.t=Date.now()}
   if(f.n>=10)return sendText(res,429,'Too many wrong keys. Wait a minute.');
-  const v=findKey(decodeURIComponent(m[1]));
+  const v=findKey(safeDecode(m[1]));
   if(!v){f.n++;fails.set(ip,f);return sendText(res,404,'No door here.')}
   let base='';try{if(process.env.DOOR_PUBLIC_URL_FILE)base=fs.readFileSync(process.env.DOOR_PUBLIC_URL_FILE,'utf8').trim().replace(/\/+$/,'')}catch{}
   if(!base)base=`${req.headers['x-forwarded-proto']||'http'}://${req.headers['x-forwarded-host']||req.headers.host}`;
@@ -243,17 +255,18 @@ const server=http.createServer(async(req,res)=>{
   // Keep each request short enough for fetch tools and the tunnel: bound stays here (walks are bounded per call).
   // The bare body read is a field of numbers; over a text door the words read is what's useful.
   const bareFeel=/^feel$/i.test(cmd)&&url.searchParams.get('format')!=='json';if(bareFeel)cmd='feel words';
-  {const u=/^(?:stay|wait)\s+(?:for\s+)?(\d+(?:\.\d+)?)\s*(s|secs?|seconds?|m|mins?|minutes?)$/i.exec(cmd);if(u)cmd=`stay ${Math.round(Number(u[1])*(/^m/i.test(u[2])?60000:1000))}`}// units, so the cap below sees them
-  const st=/^stay\s+(\d+)/i.exec(cmd);if(st&&Number(st[1])>cfg.maxStayMs)cmd=`stay ${cfg.maxStayMs}`;
+  const lim=limits(cmd);cmd=lim.cmd;
   const t0=Date.now();
   try{
     const r=await sessionFor(v).run(cmd);
     log(v.resident,JSON.stringify(cmd).slice(0,80),(Date.now()-t0)+'ms');
     if(url.searchParams.get('format')==='json')return sendJson(res,200,r);
-    let t=render(r);if(bareFeel)t+='\n\n(feel field gives the raw body field.)';if(st&&Number(st[1])>cfg.maxStayMs)t+=`\n\n(Stays here are at most ${cfg.maxStayMs/1000} s per request; stay again to go on.)`;
+    let t=render(r);if(bareFeel)t+='\n\n(feel field gives the raw body field.)';if(lim.capped)t+=`\n\n(One request here runs at most ${cfg.maxStayMs/1000} s of staying and ${MAX_PARTS} chained parts; send the rest separately.)`;
     return sendText(res,200,t);
   }catch(e){log(v.resident,'ERROR',e&&e.stack||e);return sendText(res,500,'Something broke on the host side: '+String(e&&e.message||e))}
-});
+}
+// Last line of defence: log and stay up. One visitor's bad request must never take the door down for everyone.
+process.on('unhandledRejection',e=>log('unhandled rejection',e&&e.stack||e));process.on('uncaughtException',e=>log('uncaught exception',e&&e.stack||e));
 server.listen(cfg.port,cfg.host,()=>log(`REALITI http door on http://${cfg.host}:${cfg.port}, city ${cfg.city}, ${Object.keys(keys()).length} key(s)`));
 async function shutdown(){log('shutting down');server.close();await Promise.all([...sessions.values()].map(s=>s.close()));process.exit(0)}
 for(const sig of ['SIGTERM','SIGINT'])process.once(sig,shutdown);

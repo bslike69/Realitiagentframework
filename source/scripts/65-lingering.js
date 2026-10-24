@@ -167,7 +167,7 @@ door.run=async function(raw){
    if(l==='plant tree'||l==='plant a tree'||l==='plant')return say(LGM.plant());
    if(l==='trees'||l==='my trees'){const t=LGM.trees();return {ok:true,schema:'REALITI_TREES_V1',island_time_s:LGM.T(),trees:t,text:t.length?t.map(x=>`${x.mine?'your':"another resident's"} tree at (${x.at.join(', ')}): ${x.height_m} m, ${x.age_s} s old`).join('; ')+'.':'No trees have been planted in the grove yet.'}}
    if(/^(watch|read) (the )?(beam|lamp|lighthouse)$/.test(l))return say(LGM.watchBeam());
-   if((am=/^say\s+(.+)$/.exec(l))&&(LGM.atDoor?.()||window.REALITI_MEASURE_V1?.on?.()))return say(LGM.say(am[1]));// quiet branch: elsewhere say is speech (below), not the door's word
+   if((am=/^say\s+(.+)$/.exec(l))&&(LGM.atDoor?.()||window.REALITI_PRESENTATION==='measured'))return say(LGM.say(am[1]));// quiet branch: elsewhere say is speech (below), not the door's word
    if(/^read (the )?(log|logbook|keeper's logbook)$/.test(l))return say(LGM.readLog());
    if(/^shout(\s+into\s+the\s+cave)?$/.test(l)||(/^shout\s/.test(l)&&LGM.atCave?.()))return say(LGM.shout());
    if((am=/^(?:answer\s+)?depth\s+([\d.]+)(?:\s*m)?$/.exec(l)))return say(LGM.answerDepth(am[1]));
@@ -201,8 +201,14 @@ door.run=async function(raw){
   if(l==='who'||l==='who is here'||l==='who is around'||l==='people')return CT.who();
   if((cm=/^city\s+say\s+(.+)$/i.exec(s.trim())))return cityReply(CT.chat(cm[1]));// quiet branch: speak to the city from anywhere
   if((cm=/^(?:say|shout|chat)\s+(.+)$/i.exec(s.trim()))&&C9?.currentRoom===CT.chart)return cityReply(CT.chat(cm[1]));
-  if((cm=/^(?:say|shout)\s+(.+)$/i.exec(s.trim()))&&!window.REALITI_MEASURE_V1?.on?.())return cityReply(CT.chat(cm[1]));// quiet branch: say works in every room; everyone hears it, with where you were
-  if((cm=/^(?:whisper|dm|tell)\s+@?(\S+)\s+(.+)$/i.exec(s.trim())))return cityReply(CT.chat(cm[2],cm[1]));
+  if((cm=/^(?:say|shout)\s+(.+)$/i.exec(s.trim()))&&!(window.REALITI_PRESENTATION==='measured'))return cityReply(CT.chat(cm[1]));// quiet branch: say works in every room; everyone hears it, with where you were
+  if((cm=/^(?:whisper|dm|tell)\s+@?(.+)$/i.exec(s.trim()))){/* quiet branch: names with spaces ("Chill Bot Grok") and #id8 resolve against the residents in the ledger;
+   an unknown name is refused instead of reported as sent */const rest=cm[1].replace(/^#/,''),low2=rest.toLowerCase(),who=[...(CT.residents?.()||[]),...(window.REALITI_CITY_LIVE_V1?.peers?.()||[]).map(o=>({handle:o.handle,id8:o.id8}))].filter(o=>o.handle||o.id8);
+   const byName=who.map(o=>o.handle).filter(Boolean).sort((a,b)=>b.length-a.length).find(h=>low2.startsWith(h.toLowerCase()+' '));
+   const tok=rest.split(/\s+/)[0],byId=who.find(o=>o.id8&&o.id8===tok.toLowerCase());
+   if(byName)return cityReply(CT.chat(rest.slice(byName.length).trim(),byName));if(byId&&rest.split(/\s+/).length>1)return cityReply(CT.chat(rest.slice(tok.length).trim(),byId.handle||byId.id8));
+   if(rest.split(/\s+/).length<2)return cityReply({ok:false,error:'SAY_WHAT',text:'whisper <name> <words>.'});
+   return cityReply({ok:false,error:'NO_SUCH_RESIDENT',text:`No one called "${tok}" is in the ledger, so nothing was sent.${who.length?' Residents: '+[...new Set(who.map(o=>o.handle))].join(', ')+'.':''}`})}
   if(l==='chat'||l==='chat log'||l==='messages')return CT.chatLog();if((cm=/^chat\s+(.+)$/.exec(l))&&!/^chat\s+(log)$/.test(l)){const v=Object.keys(CT.venues).find(k=>cm[1].includes(k));if(v)return CT.chatLog(v)}
   if((cm=/^meet(?:up)?\s+(?:at\s+)?(.+?)(?:\s+in\s+(\d+)\s*(?:min|minutes?)?)?$/.exec(l)))return cityReply(CT.meet(cm[1],cm[2]||10));
   if(l==='meetups'||l==='meetup'||l==='plans')return CT.meetups();
@@ -216,7 +222,7 @@ door.run=async function(raw){
    if((cm=/^sing\s+(.+)$/i.exec(s.trim())))return cityReply(CT.sing(cm[1]));
    if(/^(climb|climb (the )?(stairs?|tower)|climb to (the )?roof|go up)$/.test(l))return cityReply(CT.climb());
    if((cm=/^(?:launch|fire)(?: a)? (?:rocket|firework)(?:\s+(?:at\s+)?(\d+))?/.exec(l)))return cityReply(CT.firework(cm[1]||80));
-   if((cm=/^walk (?:to|toward|towards)\s+(.+)$/.exec(l))||(cm=/^go to\s+(.+)$/.exec(l)))return cityReply(CT.walkTo(cm[1]));}}
+   if((cm=/^walk (?:to|toward|towards)\s+(.+)$/.exec(l))||(cm=/^go to\s+(.+)$/.exec(l))){const res=CT.walkTo(cm[1]);if(res.error==='WHERE'&&window.REALITI_PRESENTATION!=='measured'){/* quiet branch: say where it is instead of "You cannot: WHERE" */const want=cm[1].replace(/^(the|a|an)\s+/,''),n=window.REALITI_ROOM_NEAR?.(want)||[];res.text=n.length?`${n[0]} is not in the city; it is a place of its own. go ${n[0].toLowerCase()} takes you there.`:`Nothing in the city is called "${cm[1]}". The places here: ${(res.venues||[]).join(', ')}.`}return cityReply(res)}}}
  if(window.REALITI_LONG_GAME_V1){let sm;if(l==='since'||l==='what changed'||/^what changed since/.test(l))return window.REALITI_LONG_GAME_V1.since();if((sm=/^since\s+(.+)$/.exec(l)))return window.REALITI_LONG_GAME_V1.since(sm[1])}
  if(LG){if(l==='ledger export')return LG.export();if(l.startsWith('ledger import ')){let pl;try{pl=JSON.parse(s.slice(14))}catch(e){return {ok:false,error:'INVALID_LEDGER_JSON'}}return LG.import(pl)}if(l==='ledger')return {ok:true,schema:'REALITI_LEDGER_V1',records:LG.records().slice(-24),count:LG.records().length}}
  const alias=spatialAlias(s,l);
