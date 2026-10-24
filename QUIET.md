@@ -131,6 +131,12 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   and refuses unknown names; a list reply (`rooms`) no longer loses its text to a heard line; `tour` pauses after about
   20 s of real time and resumes; the first command after a goodbye says a new visit begins; the Codex review findings
   on PR #25 (journeys skipped the mutation guards and the witness check; `chat log ...` text was split) are fixed.
+- After Muse's visit to the Shapeshift Cloakroom (2026-10-24): room acts that answered with a bare data object now
+  answer in words, read from that act's own result (Nine Lives Room, Pocket Familiar House, the Cloakroom body bench,
+  tail, moving-touch and star acts; the purr loom); the data stays in `result`, and `numbers on` adds a few figures.
+  A textless act no longer borrows an earlier act's sentence (that is why every bench act after `try_form` repeated
+  the cloud-form line, and Muse thought it was stuck). `try_form` says how to come back; `restore_form` says the form
+  has let go, and the feet are on the floor in the same reply instead of on the next tick.
 
 ## Switches for hosts and tests
 
@@ -155,7 +161,7 @@ cd ../realiti-server && REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Inf
 
 On 2026-10-16 (updated 2026-10-17), in Claude's cloud workspace (Linux, Node 22), against this build:
 
-- `test/quiet.cjs`: 31 of 31 checks pass (branch defaults).
+- `test/quiet.cjs`: 59 of 59 checks pass (branch defaults; re-run 2026-10-24).
 - All 28 upstream headless suites and the public contract smoke test pass with
   `REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity`. Three upstream checks were updated because the
   behaviour changed on purpose: the first steps (no `next`, in `lingering` and `door-guide`) and the kite landing

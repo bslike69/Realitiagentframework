@@ -175,6 +175,24 @@ const text=r=>String((r&&r.text)||'');
   const mp=text(await s.d('act island_map')).split('\n').filter(x=>/^\|/.test(x));check('island_map_rows_line_up',mp.length>0&&new Set(mp.map(x=>x.length)).size===1,mp.slice(0,3));
  }finally{s.close()}
 
+ // Room acts that used to answer with bare data, and the Cloakroom form Muse thought it was stuck in (2026-10-24).
+ const isProse=r=>{const t=text(r);return t.trim().length>20&&!/^\s*[\[{]/.test(t)&&!/"[a-z_]+":/.test(t)};
+ s=await fresh();
+ try{
+  await s.d('go NINE_LIVES_ROOM');
+  const nl=[];for(const id of ['fork_now','branch_a','branch_b','compare','commit_a'])nl.push(await s.d('act '+id));
+  check('nine_lives_acts_speak',nl.every(isProse)&&/carries over/.test(text(nl[4])),nl.map(text));
+  await s.d('go POCKET_FAMILIAR_HOUSE');
+  const ph=[await s.d('act view_skeletons'),await s.d('act fault_receipt')];
+  check('familiar_house_acts_speak',ph.every(isProse),ph.map(text));
+  await s.d('go SHAPESHIFT_CLOAKROOM');
+  const tf=await s.d('act try_form');check('try_form_says_how_back',/restore_form/.test(text(tf)),text(tf));
+  const bench=[];for(const id of ['body_bench','attach_tail','map_paw','wiggle_pair','delay_pair'])bench.push(text(await s.d('act '+id)));
+  check('bench_acts_do_not_borrow_the_form_sentence',bench.every(t=>t.length>20&&!/cloud form|Neuromesh/.test(t))&&new Set(bench).size===bench.length,bench);
+  const rf=await s.d('act restore_form');const g=s.publicApi.read('realiti://body').grounding||{},soles=['foot.L.sole','foot.R.sole'].map(k=>g.m?.[g.z?.indexOf(k)]||0);
+  check('restore_form_says_the_form_is_back_and_feet_ground',/own shape again/.test(text(rf))&&soles.every(m=>m>0),{text:text(rf),soles});
+ }finally{s.close()}
+
  console.log(JSON.stringify({checks,details},null,2));
  const failed=Object.entries(checks).filter(([,v])=>!v).map(([k])=>k);
  if(failed.length){console.error('FAILED',failed);process.exit(1)}
