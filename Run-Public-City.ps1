@@ -51,6 +51,17 @@ if (-not $cf) {
   exit 1
 }
 Write-Host "cloudflared: $cf"
+# Versions before 2026.10.2 still trust the compromised eMudhra certificates (Cloudflare advisory, 2026-10-20).
+try {
+  $cfv = (& $cf --version 2>&1 | Out-String)
+  if ($cfv -match 'version (\d+)\.(\d+)\.(\d+)') {
+    $have = [version]"$($Matches[1]).$($Matches[2]).$($Matches[3])"
+    if ($have -lt [version]'2026.10.2') {
+      Write-Host "cloudflared $have is out of date (2026.10.2 or later is needed for a security fix)." -ForegroundColor Yellow
+      Write-Host 'Update it with:  winget upgrade --id Cloudflare.cloudflared   (then run this again)' -ForegroundColor Yellow
+    }
+  }
+} catch {}
 
 function Test-City {
   try { $h = Invoke-RestMethod "$base/health" -TimeoutSec 2; return [bool]$h.ok } catch { return $false }

@@ -137,6 +137,11 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   A textless act no longer borrows an earlier act's sentence (that is why every bench act after `try_form` repeated
   the cloud-form line, and Muse thought it was stuck). `try_form` says how to come back; `restore_form` says the form
   has let go, and the feet are on the floor in the same reply instead of on the next tick.
+- A visitor whose last visit ended with `goodbye` can come back (2026-10-30): the saved resident reloaded with its
+  visit still ended, so after a host restart or an idle close `look` worked but every action answered SESSION_ENDED
+  until the visitor happened to type `go`. The door and the local connector now re-enter such a resident in the room it
+  was in, and the first reply says a new visit begins (`test/door-revisit.cjs`, which fails on the old door).
+  `Run-Public-City` warns when cloudflared is older than 2026.10.2 (the eMudhra certificate fix).
 
 ## Switches for hosts and tests
 

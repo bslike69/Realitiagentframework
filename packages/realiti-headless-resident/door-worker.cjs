@@ -20,6 +20,9 @@ Session.prototype.open=async function(){
   const fresh=!fs.existsSync(this.storage);fs.mkdirSync(cfg.residents,{recursive:true});
   this.s=await openResident({htmlPath:cfg.html,residentId:this.v.resident,storagePath:this.storage,walkBudgetMs:cfg.walkMs});
   if(fresh&&this.v.handle){try{await this.s.door.run('call me '+this.v.handle)}catch{}}
+  // A resident saved after a goodbye loads with its visit still ended, and every action was refused until the visitor
+  // happened to type go. Re-enter it here, in the room it was in, so the next command simply works (2026-10-30).
+  if(this.here().session==='ended'){const room=this.here().room?.id||'MERIDIAN_CITY';try{await this.s.door.run('go '+room)}catch{}this.revived=this.here().session!=='ended'}
   log('opened',this.v.resident);
 };
 Session.prototype.connect=async function(){if(!this.city)this.city=await joinCity(this.s.window,cfg.city,{password:cfg.password})};
@@ -33,7 +36,8 @@ Session.prototype.run=function(cmd){const p=this.chain.then(()=>this.run0(cmd));
 Session.prototype.run0=async function(cmd){
   this.last=Date.now();
   if(!this.s)await this.open();
-  let anew=false;if(this.departedHere){this.departedHere=false;anew=true;await this.leave();this.s.close();await this.open()}
+  if(this.departedHere){this.departedHere=false;await this.leave();this.s.close();await this.open()}
+  const anew=!!this.revived;this.revived=false;
   await this.connect();
   const wasActive=this.here().session!=='ended';
   if(/^(chat|messages|chat log|who|whisper\s|tell\s|dm\s)/i.test(cmd)){try{await this.sync()}catch{}}// names and messages as of now, not as of the last command

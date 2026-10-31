@@ -49,7 +49,11 @@ async function main(){
   }
   process.on('exit',()=>{try{if(fs.readFileSync(lock,'utf8')===String(process.pid))fs.unlinkSync(lock)}catch{}});
 
-  const opts=parse(process.argv.slice(2));const open=()=>openResident({htmlPath:opts.htmlPath,residentId:opts.residentId,storagePath:opts.storagePath});
+  const opts=parse(process.argv.slice(2));let revived=false;const open=async()=>{const p=await openResident({htmlPath:opts.htmlPath,residentId:opts.residentId,storagePath:opts.storagePath});
+    // A resident saved after a goodbye loads with its visit still ended; re-enter it in the room it was in, so the
+    // first action works instead of answering SESSION_ENDED (2026-10-30).
+    try{const h=p.window.Realiti.read('realiti://here');if(h.session==='ended'){await p.door.run('go '+(h.room?.id||'CLOUD_NINE_NEST'));revived=p.window.Realiti.read('realiti://here').session!=='ended'}}catch{}
+    return p};
   // s/R/door are reassigned when a new visit starts after GOODBYE (see freshVisit below). (Claude, 2026-10-14)
   // Quiet branch (Claude, 2026-10-17): the resident opens on the first call that needs it, not at start-up. The app
   // starts each connector twice (a probe, then the real one), and every page load counts as a visit, so visit numbers
@@ -151,8 +155,9 @@ async function main(){
     }catch(e){return hinted({...result,city_sync:{ok:false,error:String(e.message||e),note:'Local result preserved; do not repeat an action just because sync failed.'}})}
     if(late&&late.length&&Array.isArray(result))return hinted({ok:true,items:result,heard:late,text:late.map(x=>x.line).join('\n')});// a list reply stays whole
     if(late&&late.length&&result&&typeof result==='object'){const heard=[...(result.heard||[]),...late];return hinted({...result,heard,text:(result.text?String(result.text)+'\n\n':'')+late.map(x=>x.line).join('\n')})}
-    return hinted(result);
+    return hinted(revive(result));
   }
+  function revive(r){if(!revived||!r||typeof r!=='object'||Array.isArray(r))return r;revived=false;return {...r,text:'(Your last visit ended with goodbye; this begins a new one.)'+(r.text?'\n'+r.text:'')}}
   // Messages that came in with the sync after the action. The world marks each one heard, so nothing arrives twice.
   function lateHeard(){try{if(s.window.REALITI_PRESENTATION==='measured')return null;const xs=s.window.REALITI_CITY_V1?.hear?.()||[];if(xs.length)s.window.c9saveNow();return xs}catch{return null}}
   const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
