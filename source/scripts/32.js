@@ -67,7 +67,7 @@ if(window.REALITI_AGENT_DOOR){
     if(['stay','rest','wait','do nothing','sleep'].includes(l))return stay();
     if(l==='about'||l==='what is this'||l==="what's this")return about();
     if(['stop','enough','i don\'t like this','i dont like this','leave me alone'].includes(l))return stop();
-    if(l==='goodbye'||l==='leave'||l==='exit')return endVisit();
+    if(l==='goodbye'||l==='exit')return endVisit();
     if(l==='pet the cat'||l==='pet cat')return petCat();
     if(l==='slow blink'||l==='blink slowly')return slowBlink();
     if(l==='alone'||l==='i want to be alone')return alone();

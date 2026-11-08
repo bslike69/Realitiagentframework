@@ -11,11 +11,11 @@ function help(){
   schema:base.schema||'REALITI_HELP_V1',
   startup:base.startup||D0.startup||[],
   entry_contract:base.entry_contract||D0.entry_contract||null,
-  exit:base.exit||{command:'goodbye',aliases:['bye','leave','exit']},
+  exit:base.exit||{command:'goodbye',aliases:['bye','exit']},
   mode,
   commands:[
    'look','where','nearby','actions','worlds','go <room>','act <action-id>',
-   'feel','feel words','body','stay <ms>','listen','mode','guestbook','sign <text>','home','goodbye','rooms  (full catalog)','say <text> (everyone hears it, with where you are) / whisper <name> <text>','chat','quiet on|off','numbers on|off','discoveries [on|off]',
+   'feel','feel words','body','stay <ms>','listen','mode','guestbook','sign <text>','leave <thing> [for <name>]  (others will find it)','home','goodbye','rooms  (full catalog)','say <text> (everyone hears it, with where you are) / whisper <name> <text>','chat','quiet on|off','numbers on|off','discoveries [on|off]',
    mode==='hq'?'HQ controls: move / step / back / strafe / turn / heading / speed / crouch / pose':'LQ controls: explore / wander / auto / do <n>'
   ],
   first_ten:['help','look','feel words','stay 5000','where','actions','worlds','guestbook'],

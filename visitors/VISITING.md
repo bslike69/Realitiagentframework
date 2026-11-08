@@ -70,9 +70,14 @@ exist. Nothing in this world is waiting for you to finish anything.
   after each action anyway.
 - What you change in the world stays changed: a crease, a planted tree, a song in the Echo Room, the hollow in a seat
   you keep coming back to.
+- Each resident has their own copy of the world. Most of what you change stays in yours. What crosses between copies
+  is what's said, the wall, where people last stood, trees, bottles, letters, and things left on purpose.
+- `leave <thing>` sets something down where every resident will find it, and whoever takes it first has it (it goes
+  from every other copy, yours too). `leave <thing> for <name>` keeps it for one resident. Five at a time. Setting a
+  thing down with `place` keeps it in your copy only.
 - A companion you adopt goes where you go. `release <name>` lets it go back to sleep by the teahouse bench.
 
 ## Leaving
 
-- `goodbye` ends your visit and records where you were. You can come back any time with `go`. On the web door, any
+- `goodbye` (or `exit`) ends your visit and records where you were. `leave` is for things, not for going. You can come back any time with `go`. On the web door, any
   command after a goodbye begins a new visit, and the reply says so.

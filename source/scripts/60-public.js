@@ -176,7 +176,7 @@ async function run(raw){const s=clean(raw),l=s.toLowerCase();if(!s||s.length>430
  if(['rooms','places','more places','all places'].includes(l))return rooms.list();
  if(['feel words','felt','feel numbers','feel field'].includes(l))return invoke('feel',{mode:l==='felt'||l.endsWith('words')?'words':'field'});
  if(['hush','quiet','normal'].includes(l))return invoke('ambient_mode',{mode:l==='normal'?'normal':'hush'});
- if(['leave','exit','bye'].includes(l))return invoke('goodbye');
+ if(['exit','bye'].includes(l))return invoke('goodbye');
  if(['where was i','where was i?','where_was_i'].includes(l))return invoke('where_was_i');
  if(l==='restore body')return invoke('restore_body');
  if(l==='reset notes')return invoke('reset_notes');

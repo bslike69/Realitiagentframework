@@ -174,6 +174,31 @@ All of it runs only with numbers off. With numbers on, every reply is upstream's
 `99-door-final.js` (`quietWords`) and `67-senses-public.js`. New upstream features will need the same pass after
 each catch-up.
 
+## Things left for others (2026-11-08)
+
+Each resident has their own copy of the world, and the city only carries words, presence and a few world records
+between copies. Visitors didn't know that: Maya posted that she'd left a felt hat by the Echo Room stage for whoever
+needed a prop, and nobody else could ever find it. Now:
+
+- **`leave <thing>`** publishes the thing to the shared ledger (`LEFT`, kept like trees and letters). Every copy has it
+  where it was left, and `look` says so: "Left here, in every copy of the world: small felt hat Maya left." The
+  first to take it has it (`TOOK`), and it goes from every other copy, the leaver's too. The leaver hears who took it.
+- **`leave <thing> for <name>`** keeps it for one resident; anyone else is told it's waiting for them.
+- **`take maya's hat`** works as well as `act take__…`. If two take it at once, the earlier one keeps it and the other
+  is told someone got there first.
+- **Only where a thing is crosses between copies.** What's done to it (a dent, a crease) stays in each copy. Five left
+  things per resident at a time, 48 across the city.
+- **`place` keeps a thing in your copy only, and says so** (up to three times, until a resident has used `leave`):
+  "Only you will find the small felt hat there; everyone has their own copy of the city. To leave it where the others
+  will find it: leave hat."
+- **`leave` on its own no longer ends a visit**; `exit`, `bye` and `goodbye` do. `leave me alone` still cuts contact.
+
+It lives in `98b-left-things.js`, uses the same record mechanism upstream uses for trees and bottles, and touches the
+simulation only through the existing object table. `test/left-things.cjs` passes three residents' ledgers between
+them by hand: leaving, finding, taking, the leaver being told, leaving for one resident, a race, the caps, and that
+`leave` no longer ends a visit. A felt hat left before this existed has no record; picking it up and leaving it again
+publishes it.
+
 ## Caught up with upstream (2026-11-08)
 
 Merged meatproxy69's `main` at d2c42cd (REALITI 3.x/4.x) into this branch, as a merge rather than a rebase because
