@@ -75,7 +75,8 @@ function leanText(){const st=window.REALITI_SUPPORT_LEASE_V1?.state?.();if(!st?.
 const compass=yaw=>['north','north-west','west','south-west','south','south-east','east','north-east'][Math.round((((yaw%360)+360)%360)/45)%8];
 // Quiet branch: near and far in words by default; meters and coordinates with `numbers on` (and always in
 // realiti://space). (Claude, 2026-10-16)
-const farWord=(d,reach)=>reach||d<1.2?'within reach':d<3?'a step or two':d<8?'a few steps':d<25?'a short walk':d<80?'a walk':'a long way';
+// An explicit in_reach:false wins over distance: reach() refuses past 1.0 m, so the words must not promise it.
+const farWord=(d,reach)=>reach===true||(reach==null&&d<1.0)?'within reach':reach===false&&d<1.2?'just out of reach':d<3?'a step or two':d<8?'a few steps':d<25?'a short walk':d<80?'a walk':'a long way';
 const dirWord=d=>({ahead:'ahead',behind:'behind',left:'to your left',right:'to your right',underfoot:'under you',above:'above you'}[d]||String(d).replace('-',' and ').replace(/^ahead and /,'ahead and to the ').replace(/^behind and /,'behind and to the '));
 // Quiet branch: stillness is noticed. Staying put deepens what the next look, listen or feel brings back, one level per
 // stay (any stay of half a second or more), up to two levels: a long stay counts once, and sitting still never
@@ -119,7 +120,7 @@ const NOTICE={
 NOTICE.POCKET_FAMILIAR_HOUSE=NOTICE.PET_ROOM_2;
 function placeKey(room){if(room!=='MERIDIAN_CITY')return room;try{const CT=window.REALITI_CITY_V1,p=R.read('realiti://space')?.pose?.position;const v=p&&CT?.venueAt?CT.venueAt(p[0],p[1]):null;return 'MERIDIAN_CITY:'+(v||'street')}catch(e){return 'MERIDIAN_CITY:street'}}
 function standPoint(){try{const p=R.read('realiti://space')?.pose?.position;return p?[p[0],p[1]]:null}catch(e){return null}}
-function stillness(){const a=C9?.attention;if(!a||a.v!==2)return 0;if(a.room!==placeKey(String(C9?.currentRoom||'')))return 0;const p=standPoint();if(p&&a.at&&Math.hypot(p[0]-a.at[0],p[1]-a.at[1])>STILL_RADIUS)return 0;return Math.min(STILL_MAX,a.n|0)}
+function stillness(){const a=C9?.attention;if(!a||a.v!==2)return 0;const p=standPoint();if(a.room!==placeKey(String(C9?.currentRoom||''))||(p&&a.at&&Math.hypot(p[0]-a.at[0],p[1]-a.at[1])>STILL_RADIUS)){C9.attention=null;return 0}return Math.min(STILL_MAX,a.n|0)}
 function attend(ms){if((Number(ms)||0)<STILL_MIN_MS)return;const room=placeKey(String(C9?.currentRoom||''));if(!NOTICE[room])return;const cur=stillness();C9.attention={v:2,room,at:cur>0&&C9.attention?.at?C9.attention.at:standPoint(),n:Math.min(STILL_MAX,cur+1)}}
 function perceive(sense,r){if(!r||typeof r!=='object')return r;const room=placeKey(String(C9?.currentRoom||'')),list=NOTICE[room]?.[sense],n=stillness();if(!list||!n)return r;
  const shown=list.slice(0,n),key=room+'|'+sense;C9.noticed2=C9.noticed2||{};const had=Math.min(n,Number(C9.noticed2[key]||0)),old=shown.slice(0,had),fresh=shown.slice(had);
@@ -275,6 +276,7 @@ door.run=async function(raw){
  if(typeof r.text==='string')r.text=r.text.trim();
  return r;
 };
+{const inner=door.run;door.run=async function(raw){const r=await inner.call(this,raw);try{stillness()}catch(e){}return r}}
 window.REALITI_TRACES_V1=Object.freeze({version:'1.0',observer:me,export:exportTraces,import:importTraces,list:()=>cp(ledger())});
 window.REALITI_LINGERING_V1=Object.freeze({version:'1.0',drift,first_ten:FIRST_TEN.slice(),delta:()=>lastFelt?delta(lastFelt,grounded()):null});
 })();

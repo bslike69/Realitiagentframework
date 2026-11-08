@@ -220,6 +220,19 @@ const text=r=>String((r&&r.text)||'');
   check('numbers_on_senses_unchanged',/dB/.test(text(lm))&&/RT60/.test(text(lm)),text(lm));
  }finally{s.close()}
 
+ // Codex review findings on upstream #90/#91 (2026-11-08), which apply here too.
+ s=await fresh();
+ try{
+  await s.d('go KITE_FIELD');await s.d('stay');await s.d('stay');await s.d('move forward 4');await s.d('turn around');await s.d('move forward 4');const back=await s.d('look');
+  check('stillness_is_spent_when_you_leave_and_come_back',!back.noticed,text(back).slice(-120));
+  let bad=[];for(const room of ['CLOUD_NINE_NEST','POCKET_FAMILIAR_HOUSE','KITE_FIELD','SIDE_BY_SIDE_FIRESIDE']){await s.d('go '+room);const sp=s.publicApi.read('realiti://space'),lk=text(await s.d('look'));for(const n of (sp.nearby||[]))if(n.in_reach===false&&lk.includes(`${n.label}, within reach`))bad.push(room+': '+n.label)}
+  check('look_never_promises_reach_the_world_refuses',bad.length===0,bad);
+  await s.d('go SHAPESHIFT_CLOAKROOM');await s.d('act try_form');const rf=await s.d('act restore_form');
+  check('restored_envelope_matches_the_words',Number(rf.felt?.grounded_zones)>0,{felt:rf.felt});
+  await s.d('act attach_tail');await s.d('act map_paw');const br=await s.d('act brush_unmapped'),rc=await s.d('act route_rabbit_comet');
+  check('brush_and_null_results_say_what_happened',(!br.result?.borrowed?.mapped||!/feel nothing at all/.test(text(br)))&&!/Nothing happens just now/.test(text(rc)),{brush:text(br),comet:text(rc)});
+ }finally{s.close()}
+
  console.log(JSON.stringify({checks,details},null,2));
  const failed=Object.entries(checks).filter(([,v])=>!v).map(([k])=>k);
  if(failed.length){console.error('FAILED',failed);process.exit(1)}

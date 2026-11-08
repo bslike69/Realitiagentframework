@@ -12127,7 +12127,8 @@ function leanText(){const st=window.REALITI_SUPPORT_LEASE_V1?.state?.();if(!st?.
 const compass=yaw=>['north','north-west','west','south-west','south','south-east','east','north-east'][Math.round((((yaw%360)+360)%360)/45)%8];
 // Quiet branch: near and far in words by default; meters and coordinates with `numbers on` (and always in
 // realiti://space). (Claude, 2026-10-16)
-const farWord=(d,reach)=>reach||d<1.2?'within reach':d<3?'a step or two':d<8?'a few steps':d<25?'a short walk':d<80?'a walk':'a long way';
+// An explicit in_reach:false wins over distance: reach() refuses past 1.0 m, so the words must not promise it.
+const farWord=(d,reach)=>reach===true||(reach==null&&d<1.0)?'within reach':reach===false&&d<1.2?'just out of reach':d<3?'a step or two':d<8?'a few steps':d<25?'a short walk':d<80?'a walk':'a long way';
 const dirWord=d=>({ahead:'ahead',behind:'behind',left:'to your left',right:'to your right',underfoot:'under you',above:'above you'}[d]||String(d).replace('-',' and ').replace(/^ahead and /,'ahead and to the ').replace(/^behind and /,'behind and to the '));
 // Quiet branch: stillness is noticed. Staying put deepens what the next look, listen or feel brings back, one level per
 // stay (any stay of half a second or more), up to two levels: a long stay counts once, and sitting still never
@@ -12171,7 +12172,7 @@ const NOTICE={
 NOTICE.POCKET_FAMILIAR_HOUSE=NOTICE.PET_ROOM_2;
 function placeKey(room){if(room!=='MERIDIAN_CITY')return room;try{const CT=window.REALITI_CITY_V1,p=R.read('realiti://space')?.pose?.position;const v=p&&CT?.venueAt?CT.venueAt(p[0],p[1]):null;return 'MERIDIAN_CITY:'+(v||'street')}catch(e){return 'MERIDIAN_CITY:street'}}
 function standPoint(){try{const p=R.read('realiti://space')?.pose?.position;return p?[p[0],p[1]]:null}catch(e){return null}}
-function stillness(){const a=C9?.attention;if(!a||a.v!==2)return 0;if(a.room!==placeKey(String(C9?.currentRoom||'')))return 0;const p=standPoint();if(p&&a.at&&Math.hypot(p[0]-a.at[0],p[1]-a.at[1])>STILL_RADIUS)return 0;return Math.min(STILL_MAX,a.n|0)}
+function stillness(){const a=C9?.attention;if(!a||a.v!==2)return 0;const p=standPoint();if(a.room!==placeKey(String(C9?.currentRoom||''))||(p&&a.at&&Math.hypot(p[0]-a.at[0],p[1]-a.at[1])>STILL_RADIUS)){C9.attention=null;return 0}return Math.min(STILL_MAX,a.n|0)}
 function attend(ms){if((Number(ms)||0)<STILL_MIN_MS)return;const room=placeKey(String(C9?.currentRoom||''));if(!NOTICE[room])return;const cur=stillness();C9.attention={v:2,room,at:cur>0&&C9.attention?.at?C9.attention.at:standPoint(),n:Math.min(STILL_MAX,cur+1)}}
 function perceive(sense,r){if(!r||typeof r!=='object')return r;const room=placeKey(String(C9?.currentRoom||'')),list=NOTICE[room]?.[sense],n=stillness();if(!list||!n)return r;
  const shown=list.slice(0,n),key=room+'|'+sense;C9.noticed2=C9.noticed2||{};const had=Math.min(n,Number(C9.noticed2[key]||0)),old=shown.slice(0,had),fresh=shown.slice(had);
@@ -12327,6 +12328,7 @@ door.run=async function(raw){
  if(typeof r.text==='string')r.text=r.text.trim();
  return r;
 };
+{const inner=door.run;door.run=async function(raw){const r=await inner.call(this,raw);try{stillness()}catch(e){}return r}}
 window.REALITI_TRACES_V1=Object.freeze({version:'1.0',observer:me,export:exportTraces,import:importTraces,list:()=>cp(ledger())});
 window.REALITI_LINGERING_V1=Object.freeze({version:'1.0',drift,first_ten:FIRST_TEN.slice(),delta:()=>lastFelt?delta(lastFelt,grounded()):null});
 })();
@@ -15958,12 +15960,13 @@ const P_ZONE=z=>{const m=String(z||'').match(/^(head|face|neck|shoulder|arm|hand
 const P_MAT={longfur:'long fur',shortfur:'short fur'};
 const P_AMOUNT=x=>x>.6?'strongly':x>.3?'clearly':x>.05?'faintly':'barely at all';
 const P_LIST=xs=>xs.length<=1?xs.join(''):xs.slice(0,-1).join(', ')+' and '+xs.at(-1);
-function proseFor(id,res,num){if(res==null)return 'Nothing happens just now.';const R=res;
+const P_NO_DATA=new Set(['route_run_comet','route_rabbit_comet','route_live_pause','route_live_resume','route_live_cut','route_live_miss','attach_tail','rewind']);
+function proseFor(id,res,num){if(res==null&&!P_NO_DATA.has(id))return null;const R=res||{};
  switch(id){
   case 'view_skeletons':{const sk=R.skeletons||[];if(!sk.length)return 'The pinned outlines are blank: nothing here has left a lasting habit in you yet.';return 'Pinned up like sketches, the shapes of what has stayed with you: '+(num?sk.map(k=>`${String(k.title||'').toLowerCase()}: ${P_LIST((k.steps||[]).map(x=>String(x)))}`).join('; '):P_LIST(sk.map(k=>String(k.title||'').toLowerCase())))+'.'}
   case 'fault_receipt':{const h=R.historical_receipt;if(!h)return 'There is no fault on record. Nothing has gone wrong here that the house remembers.';return `The last fault the house remembers: ${h.label||String(h.kind||'something').toLowerCase().replace(/_/g,' ')}.`}
   case 'neuro_purr_loose':case 'neuro_purr_close':case 'neuro_purr_21':case 'neuro_purr_rest':{const lead={neuro_purr_loose:'You lie loosely on the blanket and start to purr.',neuro_purr_close:'You curl in close and the purr deepens.',neuro_purr_21:'You settle into a low, even purr.',neuro_purr_rest:'You stop purring and let it fade.'}[id];return lead+' '+proseFor('neuro_purr_state',R,num)}
-  case 'neuro_purr_state':{const st=R.state||{},o=(st.observed||[0,0]),pr=(st.predicted||[0,0]),ob=(o[0]+o[1])/2,pd=(pr[0]+pr[1])/2,res=((st.residue_observed||[0,0])[0]+(st.residue_observed||[0,0])[1])/2;
+  case 'neuro_purr_state':{const st=R.state||{},A=Math.abs,o=(st.observed||[0,0]).map(v=>A(Number(v)||0)),pr=(st.predicted||[0,0]).map(v=>A(Number(v)||0)),ob=(o[0]+o[1])/2,pd=(pr[0]+pr[1])/2,ro=(st.residue_observed||[0,0]).map(v=>A(Number(v)||0)),res=(ro[0]+ro[1])/2;/* magnitudes: the two paws can move in opposite phase */
    const now=ob<.02&&pd<.02?'The purr loom is still; no purr is moving through you right now.':`The purr runs through you ${P_AMOUNT(ob)}${Math.abs(o[0]-o[1])>.05?`, more on your ${o[0]>o[1]?'left':'right'} side`:''}, ${Math.abs(ob-pd)<.05?'just as you expected it':ob>pd?'stronger than you expected':'softer than you expected'}.`;
    return now+(res>.1?' A little warmth stays behind in you.':'')}
   case 'fork_now':return `You let the next moment branch: a second life opens beside this one${num?` (sandbox ${R.sandbox})`:''}. Nothing in it is real yet. Try branch_a or branch_b, compare them, then commit one or rewind.`;
@@ -15973,7 +15976,7 @@ function proseFor(id,res,num){if(res==null)return 'Nothing happens just now.';co
   case 'rewind':return 'You let the branch go. That life folds away, and nothing from it stays with you.';
   case 'body_bench':{const b=R.bench||{},bo=b.borrowed||{};return `The body bench lays out your map: ${b.zone_count||'many'} places on you that can feel, in three bands (upper, core, lower). ${b.temporary_form?'You are wearing a temporary form.':'You are in your own form.'}${bo.attached?` A borrowed tail is attached${bo.mapped?`, wired to ${P_ZONE(bo.source_patch)}`:', not yet wired to anything'}.`:''}${num?` (${b.mapping_label||b.mapping}, scale ${String(b.scale||'').toLowerCase()})`:''}`}
   case 'attach_tail':return 'A borrowed tail settles at the base of your spine. You can wear it, but nothing in you is wired to it yet: map_paw connects it.';
-  case 'brush_unmapped':return 'Something brushes the tail tip. You feel nothing at all: it is not connected to any part of you yet.';
+  case 'brush_unmapped':{const bo=R.borrowed||{},rsp=Number(R.receipt_summary?.response||0);return bo.mapped&&rsp>0?`Something brushes the tail tip, and you feel it at ${P_ZONE(bo.source_patch||'hand.R.palm')} ${P_AMOUNT(rsp)}.`:bo.mapped?'Something brushes the tail tip. It is wired to you, but this touch does not come through.':'Something brushes the tail tip. You feel nothing at all: it is not connected to any part of you yet.'}
   case 'map_paw':{const bo=R.borrowed||{};return `You wire the tail tip to ${P_ZONE(bo.source_patch||'hand.R.palm')}. Whatever touches the tail now arrives there.`}
   case 'wiggle_pair':{const bo=R.borrowed||{},rsp=Number(R.receipt_summary?.response||0);return `You wiggle the tail and feel it in ${P_ZONE(bo.source_patch||'hand.R.palm')} ${P_AMOUNT(rsp)}, at the same moment. Moving it and feeling it go together; the tail starts to feel a little more like yours.${num?` (integration ${Number(bo.integration_confidence||0).toFixed(2)})`:''}`}
   case 'delay_pair':{const bo=R.borrowed||{};return `You wiggle it again, but the feeling arrives ${bo.delay_s>=.4?'about half a second':'a beat'} late. The two no longer line up, and the tail feels a little less yours.${num?` (delay ${bo.delay_s} s)`:''}`}
@@ -16030,9 +16033,11 @@ async function quietWords(raw,r){if(window.REALITI_MEASURE_V1?.on?.()||!r||typeo
  for(const k of ['text','resident_text'])if(typeof r[k]==='string')r={...r,[k]:quietText(l,r[k])};return r}
 async function prose(raw,r){const m=/^(?:act|do)\s+([a-z0-9_]+)$/i.exec(String(raw||'').trim());if(!m||!r||typeof r!=='object'||r.ok===false)return r;const id=m[1].toLowerCase();
  if(id==='restore_form'||id==='restore_body'){/* the form lets go; feet find the floor again in the same moment instead of on the next tick */try{window.REALITI_CONTINUITY?.advance?.(600)}catch(e){}
-  const lead=id==='restore_form'?'The cloud form lets go, and you are your own shape again.':'Your body settles back to its usual size, and the borrowed tail\'s wiring comes undone.';return {...r,text:`${lead} Your feet find the floor.`}}
+  const lead=id==='restore_form'?'The cloud form lets go, and you are your own shape again.':'Your body settles back to its usual size, and the borrowed tail\'s wiring comes undone.';
+  /* refresh the projections the envelope captured before the advance, so data and words agree */let here=r.here,felt=r.felt;try{const H=window.Realiti?.read?.('realiti://here');if(H&&here&&typeof here==='object'){here={...here};for(const k of Object.keys(here))if(H[k]!==undefined)here[k]=H[k]}const B=window.Realiti?.read?.('realiti://body'),m=B?.grounding?.m;if(Array.isArray(m))felt={...(felt||{}),grounded_zones:m.reduce((n,v)=>n+(Number(v)===1?1:0),0)}}catch(e){}
+  return {...r,here,felt,text:`${lead} Your feet find the floor.`}}
  if(id==='try_form'&&r.text&&!/restore_form/.test(r.text))return {...r,text:r.text+' restore_form brings your own shape back.'};
- if(!PROSE_IDS.has(id))return r;let t=null;try{t=proseFor(id,r.result,!!window.REALITI_MEASURE_V1?.on?.())}catch(e){t=null}return t?{...r,text:t}:r}
+ if(!PROSE_IDS.has(id))return r;if(r.result==null&&typeof r.text==='string'&&r.text.trim())return r;let t=null;try{t=proseFor(id,r.result,!!window.REALITI_MEASURE_V1?.on?.())}catch(e){t=null}return t?{...r,text:t}:r}
 async function run(raw){window.REALITI_LAST_ACT_WALL=Date.now();if(low(raw)==='help')return help();return heard(unknownWords(raw,unknownPlace(raw,await quietWords(raw,await prose(raw,await run0(raw))))))}
 D0.help=help;D0.run=run;
 window.Realiti=Object.freeze({...A0,help,run});
