@@ -43,14 +43,21 @@ const text=r=>String((r&&r.text)||'');
  // --- attention, worn places, taste
  s=await fresh();
  try{
-  let got='';for(let i=0;i<3;i++){const r=await s.d('stay 10000');if(r.noticed)got=r.noticed}
-  const look=await s.d('look');
-  check('staying_still_lets_you_notice_more',!!got&&text(look).includes(got),{noticed:got});
+  // Stillness is noticed (Brian's spec, 2026-11-08): the first look is plain; stay only stays; the next look, listen or
+  // feel brings back more, each its own sense; at most two levels; moving starts it over.
+  const l0=await s.d('look'),st1=await s.d('stay'),l1=await s.d('look'),h1=await s.d('listen');
+  await s.d('stay');await s.d('stay');await s.d('stay 1 minute');const l2=await s.d('look'),l3=await s.d('look');
+  check('first_look_is_plain_and_stay_only_stays',!/notice/i.test(text(l0))&&!/notice/i.test(text(st1))&&!st1.noticed,{l0:text(l0).slice(-120),st1:text(st1)});
+  check('the_next_look_and_listen_notice_more',/Now you notice/.test(text(l1))&&l1.noticed?.details?.length===1&&/Now you notice/.test(text(h1))&&h1.noticed?.sense==='listen'&&h1.noticed.details[0]!==l1.noticed.details[0],{l1:l1.noticed,h1:h1.noticed});
+  check('stillness_is_bounded_at_two',l2.noticed?.details?.length===2&&l3.noticed?.details?.length===2&&!/Now you notice/.test(text(l3)),{l2:l2.noticed,l3:text(l3).slice(-160)});
+  await s.d('move forward 4');const l4=await s.d('look');
+  check('moving_starts_stillness_over',!l4.noticed,text(l4).slice(-120));
+  const big=await s.d('stay 10 minutes');check('long_stays_are_a_minute_and_say_so',big.ok!==false&&/at most a minute/.test(text(big)),text(big));
   await s.d('go MERIDIAN_CITY');await s.d('act walk_to__teahouse');await s.d('act walk_to__teahouse');
   await s.d('act approach__teahouse.counter');const order=await s.d('order cocoa');const sip=await s.d('sip');
   check('drinks_have_a_taste',/sweet|chocolate|steam/.test(text(sip))&&!/°C/.test(text(sip))&&!/\d/.test(text(order)),{order:text(order),sip:text(sip)});
-  let tn='';for(let i=0;i<3;i++){const r=await s.d('stay 10000');if(r.noticed)tn=r.noticed}
-  check('the_city_is_noticed_where_you_stand',/kettle|bench|tidemark/.test(tn),{noticed:tn});
+  await s.d('stay');const tl=await s.d('listen');
+  check('the_city_is_noticed_where_you_stand',/kettle|stray/.test(text(tl)),text(tl).slice(-160));
   const w=await s.d('who');
   check('who_does_not_list_a_roster',!/in the ledger|min ago/.test(text(w)),text(w));
   await s.d('act approach__teahouse.bench');const sits=[];for(let i=0;i<3;i++){sits.push(text(await s.d('act sit__teahouse.bench')));await s.d('stand up')}

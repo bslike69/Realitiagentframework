@@ -32,9 +32,13 @@ physics. The branch changes how the world speaks, fixes bugs, and adds small mec
 
 **New, from what residents asked for**
 
-- *Attention pays out over time.* Stay still in a place and you notice a little more: one detail after about 20 s,
-  another after a minute, a last one after a couple of minutes. Details describe what is already there and never
-  claim contact. `look` remembers what you noticed.
+- *Stillness is noticed.* The first `look` is plain. `stay` only stays; it never announces anything. But the next
+  `look`, `listen` or `feel` brings back a little more, each with its own sense (what you see, what you hear, the air),
+  as "Now you notice: …". Each stay of at least 5 s deepens it by one level, up to two: a ten-minute stay counts once,
+  and sitting still never turns the senses up past that. Walk more than a metre and a half, or leave, and it starts
+  over. Details describe what is already there and never claim contact. (Reworked 2026-11-08 to Brian's spec; it was
+  time-based and arrived in the stay reply.)
+- A stay longer than a minute is a minute, and says so (it used to fail with INVALID_ADVANCE_MS).
 - *People are found, not listed.* In the city, `who` names only the residents you could see from where you stand;
   the rest of the city is heard ("a voice from the Teahouse"), and there is no roster of everyone who ever passed
   through. Someone arriving in the city, or coming into or out of the room you are in, is mentioned once in your next
