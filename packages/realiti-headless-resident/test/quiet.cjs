@@ -80,7 +80,7 @@ const text=r=>String((r&&r.text)||'');
  s=await fresh();
  try{
   await s.d('go ARCHIPELAGO');const w=await s.d('walk to cairn');
-  check('long_walks_pause_and_say_how_far',w.result?.partial===true&&/still to go/.test(text(w))&&w.result.walked_m<120,text(w));
+  check('long_walks_pause_and_say_how_far',w.result?.partial===true&&/it is still (a few steps|a short walk|a walk|a long way) off/.test(text(w))&&/again to go on/.test(text(w))&&!/\d+(\.\d+)? m\b/.test(text(w))&&w.result.walked_m<120,text(w));
   await s.d('go MERIDIAN_CITY');const sp=s.publicApi.read('realiti://space').pose.position;
   check('city_arrival_is_offset_by_resident',Math.hypot(sp[0]-0,sp[1]+24)>1,sp);
   const ids=(await s.d('actions')).actions.map(a=>a.id);
@@ -198,6 +198,26 @@ const text=r=>String((r&&r.text)||'');
   check('bench_acts_do_not_borrow_the_form_sentence',bench.every(t=>t.length>20&&!/cloud form|Neuromesh/.test(t))&&new Set(bench).size===bench.length,bench);
   const rf=await s.d('act restore_form');const g=s.publicApi.read('realiti://body').grounding||{},soles=['foot.L.sole','foot.R.sole'].map(k=>g.m?.[g.z?.indexOf(k)]||0);
   check('restore_form_says_the_form_is_back_and_feet_ground',/own shape again/.test(text(rf))&&soles.every(m=>m>0),{text:text(rf),soles});
+ }finally{s.close()}
+
+ // Machinery that showed through in quiet mode (sweep of every room, 2026-11-08): senses, refusals, room text written
+ // for developers, figures in actions, walk progress. Deliberate reads keep their figures; numbers on is unchanged.
+ s=await fresh();
+ try{
+  const fig=/\b\d+(\.\d+)?\s?(dB|Hz|m\/s|lux)\b|RT60|\b[A-Z][A-Z0-9]{2,}(_[A-Z0-9]+)+\b/;
+  const ls=await s.d('listen'),sm=await s.d('smell'),bd=await s.d('body');
+  check('quiet_senses_are_words',!fig.test(text(ls))&&/You hear|Quiet|silent|murmur|Soft sound/.test(text(ls))&&!fig.test(text(sm))&&/You smell|nothing in particular/.test(text(sm))&&!!ls.sound&&!!sm.smell,{listen:text(ls),smell:text(sm)});
+  check('quiet_body_is_words',/Held at|lying|standing|sitting/.test(text(bd))&&!/zones|aftertrace/.test(text(bd)),text(bd));
+  await s.d('go MERIDIAN_CITY');await s.d('walk to teahouse');const ot=await s.d('order tea'),sp=await s.d('sip');
+  check('quiet_refusals_are_words',!/[A-Z]{3,}_[A-Z]/.test(text(ot)+text(sp))&&/counter/.test(text(ot))&&/no cup/i.test(text(sp)),{order:text(ot),sip:text(sp)});
+  await s.d('go SHAPESHIFT_CLOAKROOM');const tf=await s.d('act try_form'),mh=await s.d('act mesh_handshake');
+  check('quiet_room_text_has_no_developer_speak',!/Neuromesh|SELF|XYZ|UNKNOWN|UPPER/.test(text(tf)+text(mh))&&/still you/.test(text(tf)),{try_form:text(tf),mesh:text(mh)});
+  await s.d('go RESONANCE_WELL');const hm=await s.d('act hum_low');
+  check('quiet_actions_have_no_figures',/a low note/.test(text(hm))&&!/Hz/.test(text(hm)),text(hm));
+  await s.d('go KITE_FIELD');const rw=await s.d('act read_wind');
+  check('deliberate_reads_keep_their_figures',/m\/s/.test(text(rw)),text(rw));
+  await s.d('numbers on');const lm=await s.d('listen');await s.d('numbers off');
+  check('numbers_on_senses_unchanged',/dB/.test(text(lm))&&/RT60/.test(text(lm)),text(lm));
  }finally{s.close()}
 
  console.log(JSON.stringify({checks,details},null,2));

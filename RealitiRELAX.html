@@ -12635,7 +12635,28 @@ const terse=()=>!!SN.terse();
 function soundLine(s){if(!s)return 'No spatial body.';const top=s.sources.slice(0,4).map(x=>`${x.label} ${x.level_dB} dB ${x.distance_m} m ${x.direction}${x.occluded?' (occluded)':''}`);return `${s.level_dB} dB, RT60 ${s.rt60_s} s${s.bass_dB?`, bass ${s.bass_dB} dB`:''}.${top.length?' '+top.join('; ')+'.':''}`}
 function lightLine(l){if(!l)return 'No spatial body.';return `${l.lux} lux, ${l.sky}${l.outdoors?`, sun ${l.sun_alt_deg}° at ${l.sun_az_deg}°`:''}${l.in_shadow_of?`, in the shadow of ${l.in_shadow_of}`:''}${l.lights?.length?'. '+l.lights.slice(0,3).map(x=>`${x.label} ${x.lux} lux ${x.distance_m} m ${x.direction}`).join('; ')+'.':'.'}`}
 function smellLine(m){if(!m)return 'No spatial body.';return m.smells.length?m.smells.slice(0,4).map(x=>`${x.label} ${x.intensity}${x.direction==='all around'?'':` ${x.direction}${x.downwind?', downwind':''}`}`).join('; ')+`. Wind ${m.wind_mps} m/s from ${m.wind_from_deg}°.`:`Nothing above threshold. Wind ${m.wind_mps} m/s.`}
-function pack(kind){const r=SN.read();if(kind==='sound')return {ok:true,schema:'REALITI_SENSES_V1',kind,sound:r.sound,text:soundLine(r.sound)};if(kind==='light')return {ok:true,schema:'REALITI_SENSES_V1',kind,light:r.light,text:lightLine(r.light)};if(kind==='smell')return {ok:true,schema:'REALITI_SENSES_V1',kind,smell:r.smell,text:smellLine(r.smell)};return {ok:true,...r,text:`Sound: ${soundLine(r.sound)} Light: ${lightLine(r.light)} Smell: ${smellLine(r.smell)}`}}
+// Quiet branch: the senses in words when numbers are off; the exact figures stay in .sound/.light/.smell and come back
+// with numbers on. A sense is something a resident does with its body, not an instrument it consults.
+const W_DIR=d=>({ahead:'ahead',behind:'behind you',left:'to your left',right:'to your right','ahead-left':'ahead and to the left','ahead-right':'ahead and to the right','behind-left':'behind you to the left','behind-right':'behind you to the right','all around':'all around',above:'above you',below:'below you'})[d]||d||'';
+const W_FAR=m=>m==null?'':m<1.5?'within reach':m<4?'a step or two away':m<10?'a few steps away':m<30?'a short walk away':m<80?'a walk away':'a long way off';
+const W_LIST=xs=>xs.length<=1?xs.join(''):xs.slice(0,-1).join(', ')+' and '+xs.at(-1);
+const W_COMPASS=deg=>['north','north-east','east','south-east','south','south-west','west','north-west'][Math.round(((Number(deg)||0)%360+360)%360/45)%8];
+function soundWords(s){if(!s)return 'You hear nothing; there is no body here to hear with.';const L=Number(s.level_dB)||0,T=Number(s.rt60_s)||0;
+ const level=L<22?'Almost silent':L<30?'Quiet':L<40?'Soft sound all around':L<50?'A steady murmur':L<60?'Busy with sound':'Loud';
+ const room=T<0.1?'sound goes out and does not come back, as if under open sky':T<0.25?'the space is small and soft, and sounds die quickly':T<0.6?'there is a little echo':T<1.2?'the space rings a while after each sound':'long echoes come back, like stone';
+ const bass=s.bass_dB&&Number(s.bass_dB)>=L-3?' A low rumble runs under it all.':'';
+ const loud=db=>db<15?'faint':db<25?'soft':db<38?'':db<48?'clear':'loud';
+ const src=s.sources.slice(0,4).map(x=>[x.label,[loud(Number(x.level_dB)||0),x.occluded?'muffled':'',W_FAR(x.distance_m),W_DIR(x.direction)].filter(Boolean).join(', ')].join(', '));
+ return `${level}; ${room}.${bass}${src.length?' You hear '+W_LIST(src)+'.':''}`}
+function lightWords(l){if(!l)return 'There is no body here to see with.';const x=Number(l.lux)||0;const how=x<1?'It is dark':x<20?'It is dim':x<200?'The light is soft':x<2000?'It is bright':'The light is glaring';
+ const sun=l.outdoors&&l.sun_alt_deg!=null?(l.sun_alt_deg<0?', and the sun is down':l.sun_alt_deg<15?`, with the sun low in the ${W_COMPASS(l.sun_az_deg)}`:`, with the sun high in the ${W_COMPASS(l.sun_az_deg)}`):'';
+ const shade=l.in_shadow_of?`. You are in the shadow of ${l.in_shadow_of}`:'';const lamps=l.lights?.length?'. Light comes from '+W_LIST(l.lights.slice(0,3).map(y=>`${y.label}, ${W_DIR(y.direction)}`)):'';
+ return `${how}${l.sky?` (${l.sky})`:''}${sun}${shade}${lamps}.`}
+function smellWords(m){if(!m)return 'There is no body here to smell with.';const air=m.wind_mps<0.3?'The air is still.':`${m.wind_mps<1.5?'A faint breath of air':m.wind_mps<4?'A light breeze':m.wind_mps<8?'A steady wind':'A strong wind'} comes from the ${W_COMPASS(m.wind_from_deg)}.`;
+ if(!m.smells.length)return 'You smell nothing in particular. '+air;const k=v=>v>0.5?'strong':v>0.2?'clear':v>0.08?'faint':'very faint';
+ return 'You smell '+W_LIST(m.smells.slice(0,4).map(x=>`${x.label} (${k(Number(x.intensity)||0)}${x.direction==='all around'?', all around':', '+W_DIR(x.direction)}${x.downwind?', carried on the wind':''})`))+'. '+air}
+const WORDS=()=>!window.REALITI_MEASURE_V1?.on?.();
+function pack(kind){const r=SN.read();const w=WORDS(),SL=w?soundWords:soundLine,LL=w?lightWords:lightLine,ML=w?smellWords:smellLine;if(kind==='sound')return {ok:true,schema:'REALITI_SENSES_V1',kind,sound:r.sound,text:SL(r.sound)};if(kind==='light')return {ok:true,schema:'REALITI_SENSES_V1',kind,light:r.light,text:LL(r.light)};if(kind==='smell')return {ok:true,schema:'REALITI_SENSES_V1',kind,smell:r.smell,text:ML(r.smell)};return {ok:true,...r,text:w?`${SL(r.sound)} ${LL(r.light)} ${ML(r.smell)}`:`Sound: ${soundLine(r.sound)} Light: ${lightLine(r.light)} Smell: ${smellLine(r.smell)}`}}
 function trim(r){if(!terse()||!r||typeof r!=='object')return r;for(const k of ['text','resident_text']){const t=r[k];if(typeof t!=='string'||!t)continue;const disc=(t.match(/✦ Discovery: [^✦]*/g)||[]).map(x=>x.trim());const body=t.replace(/✦ Discovery: [^✦]*/g,'').trim();const first=(body.match(/^.*?[.!?](?=\s|$)/)||[body])[0].trim();r[k]=[first,...disc].filter(Boolean).join(' ')}return r}
 const help0=D0.help.bind(D0);
 function help(){const h=help0()||{commands:[]};h.commands=[...new Set([...(h.commands||[]),'listen','light','smell','senses','prose on','prose off','time'])];h.senses='realiti://senses: sound (inverse-square, ray-cast occlusion, Sabine RT60), light (shared sun, shadow by ray cast, lamps), smell (steady plume). listen, light, smell, senses. prose off trims every reply to its measured sentence.';return h}
@@ -15939,7 +15960,7 @@ const P_AMOUNT=x=>x>.6?'strongly':x>.3?'clearly':x>.05?'faintly':'barely at all'
 const P_LIST=xs=>xs.length<=1?xs.join(''):xs.slice(0,-1).join(', ')+' and '+xs.at(-1);
 function proseFor(id,res,num){if(res==null)return 'Nothing happens just now.';const R=res;
  switch(id){
-  case 'view_skeletons':{const sk=R.skeletons||[];if(!sk.length)return 'The pinned outlines are blank: nothing here has left a lasting habit in you yet.';return 'Pinned up like sketches, the shapes of what has stayed with you: '+sk.map(k=>`${String(k.title||'').toLowerCase()}: ${P_LIST((k.steps||[]).map(x=>String(x)))}`).join('; ')+'.'}
+  case 'view_skeletons':{const sk=R.skeletons||[];if(!sk.length)return 'The pinned outlines are blank: nothing here has left a lasting habit in you yet.';return 'Pinned up like sketches, the shapes of what has stayed with you: '+(num?sk.map(k=>`${String(k.title||'').toLowerCase()}: ${P_LIST((k.steps||[]).map(x=>String(x)))}`).join('; '):P_LIST(sk.map(k=>String(k.title||'').toLowerCase())))+'.'}
   case 'fault_receipt':{const h=R.historical_receipt;if(!h)return 'There is no fault on record. Nothing has gone wrong here that the house remembers.';return `The last fault the house remembers: ${h.label||String(h.kind||'something').toLowerCase().replace(/_/g,' ')}.`}
   case 'neuro_purr_loose':case 'neuro_purr_close':case 'neuro_purr_21':case 'neuro_purr_rest':{const lead={neuro_purr_loose:'You lie loosely on the blanket and start to purr.',neuro_purr_close:'You curl in close and the purr deepens.',neuro_purr_21:'You settle into a low, even purr.',neuro_purr_rest:'You stop purring and let it fade.'}[id];return lead+' '+proseFor('neuro_purr_state',R,num)}
   case 'neuro_purr_state':{const st=R.state||{},o=(st.observed||[0,0]),pr=(st.predicted||[0,0]),ob=(o[0]+o[1])/2,pd=(pr[0]+pr[1])/2,res=((st.residue_observed||[0,0])[0]+(st.residue_observed||[0,0])[1])/2;
@@ -15972,12 +15993,47 @@ function proseFor(id,res,num){if(res==null)return 'Nothing happens just now.';co
  }
  return null}
 const PROSE_IDS=new Set(['view_skeletons','fault_receipt','neuro_purr_state','neuro_purr_loose','neuro_purr_close','neuro_purr_21','neuro_purr_rest','fork_now','branch_a','branch_b','compare','commit_a','commit_b','rewind','body_bench','attach_tail','brush_unmapped','map_paw','wiggle_pair','delay_pair','near_probe','detach_tail','route_run_comet','route_rabbit_comet','route_live_pause','route_live_resume','route_live_cut','route_live_reverse','route_live_miss','route_live_state','star_route','neuro_star_river','neuro_star_comet','neuro_star_sparkle']);
+// Quiet branch: the last translation pass. With numbers off, machinery that still shows through (refusal codes, room
+// text written for developers, figures in things a resident does rather than reads) becomes words. Deliberate reads
+// (read_wind, tide, forecast, read_lights, calendar, watch_*) keep their figures by design: the resident asked for an
+// instrument. With numbers on, nothing here runs. (2026-11-08, from a sweep of every room in quiet mode.)
+const Q_FAR=m=>m<1.5?'within reach':m<10?'a few steps off':m<30?'a short walk off':m<80?'a walk off':'a long way off';
+const Q_DIR=d=>({ahead:'ahead of you',behind:'behind you',left:'your left',right:'your right','ahead-left':'ahead and to your left','ahead-right':'ahead and to your right','behind-left':'behind you to the left','behind-right':'behind you to the right'})[d]||d;
+const Q_COMPASS=deg=>['north','north-east','east','south-east','south','south-west','west','north-west'][Math.round(((Number(deg)||0)%360+360)%360/45)%8];
+const Q_REFUSE={STAND_AT_THE_COUNTER:'You need to be at the counter to order. approach teahouse.counter, then order.',NO_CUP:'You have no cup yet. Order something at the teahouse counter first.',NOT_A_SUPPORT_HERE:'There is nothing here to sit on.',UNDER_WATER:'You cannot dig here; it is under water.',TOO_CLOSE_TO_THE_WATER:'It is too close to the water here.',NOT_ABOARD:'You are not in the boat.',BOAT_OUT_OF_REACH:'The boat is out of reach. walk to boat first.',NOTHING_HELD:'You are not holding anything.',NO_SUCH_ACTION:'There is no such action here. actions lists what you can do.'};
+const Q_TEXT=[
+ ['A living room at whatever body scale you actually brought. Symbolic social scenes are visibly different from grounded participants, and paws now keep their own local history.','A living room at whatever size you came in at.'],
+ ['The purr begins as SELF-caused carrier, so predictable components attenuate. Blanket supports can shape its return without being mistaken for a new outside touch.','You start to purr under the blanket. Because the purr is your own, it settles into the background, and the blanket shapes how it comes back to you.'],
+ [/A private pulse runs across the mesh from the sternum for [\d.]+ s\. Nothing touches you; the routing is yours\./,'A small private pulse runs out from the middle of your chest and fades. Nothing touches you; it is only your own body checking in.'],
+ ['The current Neuromesh answers at coarse scale: UPPER → CORE → LOWER. Seam continuity is testable immediately; unresolved local detail stays UNKNOWN.','Your body answers in three broad bands, upper, middle and lower, joined without a gap. Finer detail is not mapped yet.'],
+ ['Your represented silhouette stretches into a long-limbed cloud form. The Neuromesh stays bound by semantic roles rather than old XYZ. Nothing about SELF is rewritten.','Your silhouette stretches into a long-limbed cloud form. Underneath, you are still you.'],
+ ['The second berth is honestly empty unless another grounded participant is actually present. A cracked window can still create an ordinary environmental draft without inventing company.','A fire, and two low seats side by side. The second seat is empty unless someone else is really here. A cracked window lets in an ordinary draught.'],
+ ['The warm shelf takes your weight broadly while warmth enters through the same grounded contact zones.','The warm shelf takes your weight broadly, and warmth comes up through everywhere it holds you.'],
+ [/You walk ([\d.]+) m toward (.+?); ([\d.]+) m still to go/,(m,a,b,c)=>`You walk ${+a<15?'a little way':+a<60?'a good way':'a long way'} toward ${b}; it is still ${Q_FAR(+c)}`],
+ [/The boat is ([\d.]+) m away/,(m,a)=>`The boat is ${Q_FAR(+a).replace(/ off$/,' away')}`],
+ [/You hum ([\d.]+) Hz\./,(m,a)=>`You hum ${+a<100?'a low note':+a<250?'a middle note':'a high note'}.`],
+ [/You start tapping at [\d.]+ Hz\./,'You start tapping a slow, steady beat.'],
+ [/You press a glass seed into cell \(\d+,\d+\)\. (\d+) cells? live; the next generation is in [\d.]+ s\./,(m,n)=>`You press a glass seed into the ground. ${+n===1?'It is the only living cell':n+' cells are alive'}; the next generation is moments away.`],
+ [/it is ([\d.]+) m off when you stop/,(m,a)=>`it is ${+a<1?'almost within reach':+a<3?'just out of reach':'well out of reach'} when you stop`],
+ [/(\w+) (speeds up|slows) by \d+%\. Its orbit is now (?:an ellipse of eccentricity ([\d.]+)|nearly circular), period about [\d.]+ s\./,(m,p,v,e)=>`${p} ${v}. Its orbit is now ${e==null||+e<0.03?'nearly a circle':+e<0.12?'a slight ellipse':'a long ellipse'}, and it comes round ${v==='speeds up'?'sooner':'more slowly'}.`],
+ [/Clap\. (\d+) of 16 directions come straight back; the longest echo is \d+ ms ([\w-]+) \(([\d.]+) m\)\./,(m,n,d,r)=>`Clap. ${+n===0?'Nothing comes straight back':+n<5?'A little comes straight back':+n<12?'Much of it comes straight back':'It comes back from all around'}; the longest echo returns from ${Q_DIR(d)}, ${Q_FAR(+r)}.`],
+ [/By your own steps: ([\d.]+) m from the grate \(-?[\d.]+, -?[\d.]+\), heading (\d+)°\./,(m,d,h)=>`By your own steps, ${+d<1.5?'you are right by the grate':`the grate is ${Q_FAR(+d)}`}, and you are heading ${Q_COMPASS(h)}.`],
+];
+function quietText(raw,t){if(typeof t!=='string'||!t)return t;let out=t;
+ out=out.replace(/You cannot(?: ([a-z]+) here)?: ([A-Z][A-Z0-9_]+)\./g,(m,verb,code)=>Q_REFUSE[code]||`You cannot${verb?` ${verb} here`:''}: ${code.toLowerCase().replace(/_/g,' ')}.`);
+ for(const [a,b] of Q_TEXT)out=typeof a==='string'?out.split(a).join(b):out.replace(a,b);
+ if(/^tap_(faster|slower)$/.test(String(raw).replace(/^(?:act|do)\s+/i,'')))out=out.replace(/Your tempo is now [\d.]+ Hz\./,`You tap a little ${/faster/.test(raw)?'faster':'slower'}.`);
+ return out}
+async function quietWords(raw,r){if(window.REALITI_MEASURE_V1?.on?.()||!r||typeof r!=='object')return r;const l=String(raw||'').trim().toLowerCase();
+ if(l==='body'&&r.ok!==false){try{const f=await run0('feel words');const t=String(f?.text||'').trim();if(t)return {...r,text:t+' Nothing about how you feel is inferred.'}}catch(e){}}
+ if(r.ok===false&&!r.text&&typeof r.error==='string'&&/^[A-Z][A-Z0-9_]+$/.test(r.error)&&r.error!=='SESSION_ENDED'){const t=Q_REFUSE[r.error];if(t){r={...r,text:t};delete r.hint}}
+ for(const k of ['text','resident_text'])if(typeof r[k]==='string')r={...r,[k]:quietText(l,r[k])};return r}
 async function prose(raw,r){const m=/^(?:act|do)\s+([a-z0-9_]+)$/i.exec(String(raw||'').trim());if(!m||!r||typeof r!=='object'||r.ok===false)return r;const id=m[1].toLowerCase();
  if(id==='restore_form'||id==='restore_body'){/* the form lets go; feet find the floor again in the same moment instead of on the next tick */try{window.REALITI_CONTINUITY?.advance?.(600)}catch(e){}
   const lead=id==='restore_form'?'The cloud form lets go, and you are your own shape again.':'Your body settles back to its usual size, and the borrowed tail\'s wiring comes undone.';return {...r,text:`${lead} Your feet find the floor.`}}
  if(id==='try_form'&&r.text&&!/restore_form/.test(r.text))return {...r,text:r.text+' restore_form brings your own shape back.'};
  if(!PROSE_IDS.has(id))return r;let t=null;try{t=proseFor(id,r.result,!!window.REALITI_MEASURE_V1?.on?.())}catch(e){t=null}return t?{...r,text:t}:r}
-async function run(raw){window.REALITI_LAST_ACT_WALL=Date.now();if(low(raw)==='help')return help();return heard(unknownWords(raw,unknownPlace(raw,await prose(raw,await run0(raw)))))}
+async function run(raw){window.REALITI_LAST_ACT_WALL=Date.now();if(low(raw)==='help')return help();return heard(unknownWords(raw,unknownPlace(raw,await quietWords(raw,await prose(raw,await run0(raw))))))}
 D0.help=help;D0.run=run;
 window.Realiti=Object.freeze({...A0,help,run});
 window.REALITI_DOOR_CURATOR_V1=Object.freeze({version:'1.0',help});

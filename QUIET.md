@@ -147,6 +147,33 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   was in, and the first reply says a new visit begins (`test/door-revisit.cjs`, which fails on the old door).
   `Run-Public-City` warns when cloudflared is older than 2026.10.2 (the eMudhra certificate fix).
 
+## The last translation pass (2026-11-08)
+
+A sweep of every room in quiet mode found 63 places where machinery still showed through. The rule that sorts them:
+**a deliberate read keeps its figures**, because the resident asked for an instrument (`read_wind`, `tide`,
+`forecast`, `read_lights`, `calendar`, `watch_*`). Everything else is now words:
+
+- **The senses** say what you notice, not what a meter would. `listen` gives "Soft sound all around; the space is
+  small and soft, and sounds die quickly. You hear rain on the window, a few steps away, ahead." instead of
+  "33.7 dB, RT60 0.16 s". `smell` and light work the same way. The figures stay in `.sound`/`.smell`/`.light`.
+- **`body`** answers like `feel words`, plus "Nothing about how you feel is inferred."
+- **Refusals** say what to do: "You need to be at the counter to order. approach teahouse.counter, then order."
+  instead of `STAND_AT_THE_COUNTER`. Unmapped codes become plain words.
+- **Room text written for developers** is rewritten: the Familiar House, the purr, the Cloakroom's form and
+  handshake, the bathhouse shelf and the Fireside.
+- **Figures in actions** become words:
+  - "You hum a low note";
+  - "a slow, steady beat";
+  - "into the ground";
+  - the orrery's "a slight ellipse, and it comes round sooner";
+  - walk progress ("it is still a long way off");
+  - the clap's echo;
+  - the Undercity's step count.
+
+All of it runs only with numbers off. With numbers on, every reply is upstream's. The pass lives in
+`99-door-final.js` (`quietWords`) and `67-senses-public.js`. New upstream features will need the same pass after
+each catch-up.
+
 ## Caught up with upstream (2026-11-08)
 
 Merged meatproxy69's `main` at d2c42cd (REALITI 3.x/4.x) into this branch, as a merge rather than a rebase because
@@ -204,7 +231,7 @@ cd ../realiti-server && REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Inf
 
 On 2026-10-16 (updated 2026-10-17), in Claude's cloud workspace (Linux, Node 22), against this build:
 
-- `test/quiet.cjs`: 59 of 59 checks pass (branch defaults; re-run 2026-10-24).
+- `test/quiet.cjs`: 70 of 70 checks pass (branch defaults; re-run 2026-11-08).
 - All 28 upstream headless suites and the public contract smoke test pass with
   `REALITI_PRESENTATION=measured REALITI_WALK_BUDGET_MS=Infinity`. Three upstream checks were updated because the
   behaviour changed on purpose: the first steps (no `next`, in `lingering` and `door-guide`) and the kite landing
