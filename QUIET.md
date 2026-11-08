@@ -196,7 +196,8 @@ needed a prop, and nobody else could ever find it. Now:
 It lives in `98b-left-things.js`, uses the same record mechanism upstream uses for trees and bottles, and touches the
 simulation only through the existing object table. `test/left-things.cjs` passes three residents' ledgers between
 them by hand: leaving, finding, taking, the leaver being told, leaving for one resident, a race, the caps, and that
-`leave` no longer ends a visit. A felt hat left before this existed has no record; picking it up and leaving it again
+`leave` no longer ends a visit. `test/left-things-live.cjs` does it for real: a throwaway city server and the HTTP
+door with two visitors, nothing passed by hand. The city server keeps `LEFT`/`TOOK` records when it trims old ones. A felt hat left before this existed has no record; picking it up and leaving it again
 publishes it.
 
 ## Caught up with upstream (2026-11-08)

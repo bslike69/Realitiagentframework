@@ -25,7 +25,7 @@ const HEADERS={'access-control-allow-origin':'*','x-content-type-options':'nosni
 function canonical(e){const o={};for(const k of Object.keys(e).sort()){if(k==='sig'||k==='pk'||k==='t_here'||k==='verified')continue;o[k]=e[k]}return JSON.stringify(o)}
 const unb64u=s=>Buffer.from(String(s).replace(/-/g,'+').replace(/_/g,'/')+'=='.slice(0,(4-s.length%4)%4),'base64');
 async function verify(e){if(!e.pk||!e.sig)return null;try{const pub=await subtle.importKey('jwk',{kty:'OKP',crv:'Ed25519',x:e.pk,ext:true},{name:'Ed25519'},true,['verify']);return await subtle.verify('Ed25519',pub,unb64u(e.sig),enc.encode(canonical(e)))}catch{return false}}
-const WORLD=new Set(['PLANT','PLACE','BUILD','INSCRIBE','INSTALL','AVATAR','BOTTLE','ADOPT','NAME_STAR','SCRATCH','LETTER','SHELL','TRADE','GUEST']);
+const WORLD=new Set(['PLANT','PLACE','BUILD','INSCRIBE','INSTALL','AVATAR','BOTTLE','ADOPT','NAME_STAR','SCRATCH','LETTER','SHELL','TRADE','GUEST','LEFT','TOOK']);
 const KEEP_TAIL={ROW:64,ARRIVE:256,CHAT:1024,POST:128,DANCE:64,SONG:64,FIREWORK:32,MEET:64,DIG:32,OPEN:16,SCORE:512,CATCH:512,RACE:256,HOP:256};
 
 // Store: a checkpoint envelope on disk, written atomically.
