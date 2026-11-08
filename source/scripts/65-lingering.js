@@ -78,12 +78,12 @@ const compass=yaw=>['north','north-west','west','south-west','south','south-east
 const farWord=(d,reach)=>reach||d<1.2?'within reach':d<3?'a step or two':d<8?'a few steps':d<25?'a short walk':d<80?'a walk':'a long way';
 const dirWord=d=>({ahead:'ahead',behind:'behind',left:'to your left',right:'to your right',underfoot:'under you',above:'above you'}[d]||String(d).replace('-',' and ').replace(/^ahead and /,'ahead and to the ').replace(/^behind and /,'behind and to the '));
 // Quiet branch: stillness is noticed. Staying put deepens what the next look, listen or feel brings back, one level per
-// stay (a stay of at least 5 s of world time), up to two levels: a long stay counts once, and sitting still never
+// stay (any stay of half a second or more), up to two levels: a long stay counts once, and sitting still never
 // sharpens the senses past that. The stay reply itself says nothing new; the details wait until you look, listen or feel
 // again, each sense with its own. Moving more than about a metre and a half, or leaving the place, starts it over.
 // Details describe what is already there; they never claim contact. (Claude, 2026-10-16; reworked 2026-11-08 from
 // Brian's spec: earned by stillness, revealed only by perceiving, bounded.)
-const STILL_MAX=2,STILL_MIN_MS=5000,STILL_RADIUS=1.5;
+const STILL_MAX=2,STILL_MIN_MS=500,STILL_RADIUS=1.5;
 window.REALITI_STILLNESS_V1={perceive:(sense,r)=>perceive(sense,r),level:()=>stillness(),max:STILL_MAX};
 const NOTICE={
  CLOUD_NINE_NEST:{look:['Low in the window frame there is a seam where drops gather and run the long way round.','The cat\'s ears turn toward the window whenever the rain changes.'],listen:['Under the rain there is a second, slower drip from the gutter outside.','The cat breathes in a long, even rhythm, with a small catch at the top of each breath.'],feel:['A faint draught comes from the window seam, cooler than the room.','From the shelf comes the faint smell of dry tea leaves.']},
