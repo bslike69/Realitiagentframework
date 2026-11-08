@@ -38,7 +38,7 @@ const EVENT_TEXT={
  palimpsest_complete:'The last line of the fifth scroll names a loose board in the Nest.',
  loose_board:'Under the loose board: a folded note that says only "you were here before you knew it".'
 };
-function announcing(v){const w=W();if(v!==undefined)w.announce=!!v;return w.announce===true}
+function announcing(v){const w=W();if(v!==undefined)w.announce=!!v;return w.announce===true||(w.announce==null&&window.REALITI_PRESENTATION==='measured')}
 const drain=()=>{const p=pending;pending=[];if(announcing())return p;return p.filter(x=>EVENT_TEXT[x.id]).map(x=>({id:x.id,text:EVENT_TEXT[x.id],plain:true}))};
 
 // Glass Orchard: Life on a 24×24 grid of one-meter cells; a generation every world second. The grid is the floor.

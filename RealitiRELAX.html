@@ -8975,7 +8975,7 @@ const rain=(t=now())=>clamp((7+2.2*pink(t,Number(C9?.b21?.seed||42421),.004))/13
 const pretty=z=>String(z).replace(/^(torso|pelvis|head|leg|arm|hand|foot)\./,'').replace(/^([LR])\./,'$1 ').replaceAll('_',' ');
 // Quiet branch: ambience is described in words by default (upstream has the same presentation as opt-in `quiet on`);
 // the exact figures stay in the resources, receipts and deliberate reads. `numbers on` puts them back in every reply.
-if(!window.REALITI_MEASURE_V1)window.REALITI_MEASURE_V1=Object.freeze({on:v=>{if(v!==undefined){C9.measured=!!v;try{c9save()}catch(e){}}return C9?.measured===true}});
+if(!window.REALITI_MEASURE_V1)window.REALITI_MEASURE_V1=Object.freeze({on:v=>{if(v!==undefined){C9.measured=!!v;try{c9save()}catch(e){}}return C9?.measured===true||(C9?.measured==null&&window.REALITI_PRESENTATION==='measured')}});
 const measured=()=>window.REALITI_MEASURE_V1.on();
 function calmWords(){
  const r=room(),s=S(),out=[];
@@ -9403,7 +9403,7 @@ const EVENT_TEXT={
  palimpsest_complete:'The last line of the fifth scroll names a loose board in the Nest.',
  loose_board:'Under the loose board: a folded note that says only "you were here before you knew it".'
 };
-function announcing(v){const w=W();if(v!==undefined)w.announce=!!v;return w.announce===true}
+function announcing(v){const w=W();if(v!==undefined)w.announce=!!v;return w.announce===true||(w.announce==null&&window.REALITI_PRESENTATION==='measured')}
 const drain=()=>{const p=pending;pending=[];if(announcing())return p;return p.filter(x=>EVENT_TEXT[x.id]).map(x=>({id:x.id,text:EVENT_TEXT[x.id],plain:true}))};
 
 // Glass Orchard: Life on a 24×24 grid of one-meter cells; a generation every world second. The grid is the floor.
@@ -11974,7 +11974,8 @@ const LABS={
  ]
 };
 const actionBase=b4AgentActions;
-b4AgentActions=function(){const a=actionBase(),seen=new Set(a.map(x=>x.id));if(C9.neuroLabs)for(const [id,label] of LABS[C9.currentRoom]||[])if(!seen.has(id))a.push({id,label});return a};
+window.REALITI_LABS_ON=()=>C9.neuroLabs===true||(C9.neuroLabs==null&&window.REALITI_PRESENTATION==='measured');// quiet branch: benches off unless asked, or the host is measured
+b4AgentActions=function(){const a=actionBase(),seen=new Set(a.map(x=>x.id));if(window.REALITI_LABS_ON())for(const [id,label] of LABS[C9.currentRoom]||[])if(!seen.has(id))a.push({id,label});return a};
 
 function oldLab(fn,verb,label,stateFn){
  if(typeof fn!=='function')return {ok:false,error:'LAB_MECHANISM_UNAVAILABLE',lab:label};
@@ -12208,7 +12209,7 @@ door.run=async function(raw){
  if(CAT){const frontier=r=>{const rec=C9?.b4?.lastReceipt||{};return {ok:true,schema:'REALITI_FRONTIER_RESULT_V1',text:[rec.narrative,...CAT.drain().map(d=>(d.plain?d.text:'✦ Discovery: '+d.text))].filter(Boolean).join(' '),receipt:cp(rec),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}}};
   // Quiet presentation, all at once: words instead of figures, finds kept without announcements, lab benches out of the
   // action lists. Each part has its own switch too (numbers, discoveries, neuro labs).
-  if(l==='quiet on'||l==='quiet off'||l==='quiet'){if(l!=='quiet'){const q=l.endsWith(' on');window.REALITI_MEASURE_V1?.on(!q);CAT.announcing(!q);C9.neuroLabs=!q;try{if(typeof c9save==='function')c9save()}catch(e){}}const q=!window.REALITI_MEASURE_V1?.on()&&!CAT.announcing()&&C9.neuroLabs===false;return {ok:true,schema:'REALITI_PRESENTATION_V1',quiet:q,numbers:!!window.REALITI_MEASURE_V1?.on(),announcing:CAT.announcing(),labs:C9.neuroLabs!==false,text:q?'Quiet: rooms are described in words, finds are kept without announcements, and lab benches are out of the action lists. numbers on, discoveries on and neuro labs on bring each back; quiet off brings all three.':'Replies carry figures, finds are announced, and lab benches are listed. quiet on describes in words instead.'}}
+  if(l==='quiet on'||l==='quiet off'||l==='quiet'){if(l!=='quiet'){const q=l.endsWith(' on');window.REALITI_MEASURE_V1?.on(!q);CAT.announcing(!q);C9.neuroLabs=!q;try{if(typeof c9save==='function')c9save()}catch(e){}}const labsOn=window.REALITI_LABS_ON?window.REALITI_LABS_ON():C9.neuroLabs!==false,q=!window.REALITI_MEASURE_V1?.on()&&!CAT.announcing()&&!labsOn;return {ok:true,schema:'REALITI_PRESENTATION_V1',quiet:q,numbers:!!window.REALITI_MEASURE_V1?.on(),announcing:CAT.announcing(),labs:labsOn,text:q?'Quiet: rooms are described in words, finds are kept without announcements, and lab benches are out of the action lists. numbers on, discoveries on and neuro labs on bring each back; quiet off brings all three.':'Replies carry figures, finds are announced, and lab benches are listed. quiet on describes in words instead.'}}
   if(l==='numbers on'||l==='numbers off'){const on=l.endsWith(' on');window.REALITI_MEASURE_V1?.on(on);return {ok:true,numbers:on,text:on?'Replies carry the exact figures now.':'Replies describe in words. Deliberate reads (read_wind, tide, listen...) still give exact figures.'}}
   if(l==='discoveries on'||l==='discoveries off'){const on=l.endsWith(' on');CAT.announcing(on);try{if(typeof c9save==='function')c9save()}catch(e){}return {ok:true,schema:'REALITI_DISCOVERIES_V1',announcing:on,text:on?'Finds will be announced as they happen.':'Finds are kept quietly. discoveries lists them.'}}
   // Quiet presentation: what you found, without a count of what is left (no "10 of 102"). With numbers on, the total.
@@ -12724,7 +12725,7 @@ async function invoke(name,args={}){CO.finishJourney();if(String(name).toLowerCa
   const j=CO.startJourney(id);return j.ok?{schema:'REALITI_MUTATION_RESULT_V1',ok:true,result:{journey:j,portal:id,law:'the crossing takes its time; stay to arrive'}}:{ok:false,...j}}}return A0.invoke(name,args)}
 const run0=D0.run.bind(D0),help0=D0.help.bind(D0);
 function help(){const h=help0()||{commands:[]};h.commands=[...new Set([...(h.commands||[]),'adopt <name> [cat|dog|fox|bird|lantern]','release <name>','call <name>','pet <name>','companion','birds','take the tram','ride the lift','journey'])];h.companions='A flock over the plaza that parts around you and roosts at dusk. Adopt the stray by the teahouse bench: it follows on a leash spring, wanders, bolts from bass, crosses charts with you and lives in your ledger. The tram and the lift are journeys: go through their doors and stay; seat, back and soles take the acceleration.';return h}
-async function run(raw){CO.finishJourney();let s=String(raw||'').trim(),l=low(s);let m,longStay=false;{const big=/^(stay|wait)\s+(\d+)$/.exec(l);if(big&&Number(big[2])>60000){s=`${big[1]} 60000`;l=low(s);longStay=true}}
+async function run(raw){CO.finishJourney();let s=String(raw||'').trim(),l=low(s);let m,longStay=false;{const big=/^(stay|wait)\s+(\d+)$/.exec(l);if(big&&Number(big[2])>60000&&window.REALITI_PRESENTATION!=='measured'){s=`${big[1]} 60000`;l=low(s);longStay=true}}
  // Quiet branch: stay and wait in plain words ("stay a while", "wait 30 seconds", "stay put"); bare stay is ten seconds.
  // A plain number is still milliseconds. Measured presentation keeps upstream's bare stay.
  if((m=/^(?:stay|wait|linger|pause)(?:\s+(.*))?$/.exec(l))&&!/^\d+$/.test(m[1]||'')){const u=/^(?:for\s+)?(\d+(?:\.\d+)?)\s*(ms|milliseconds?|s|secs?|seconds?|m|mins?|minutes?)$/.exec(m[1]||'');const meas=window.REALITI_PRESENTATION==='measured';
@@ -15909,7 +15910,7 @@ function help(){
    'feel','feel words','body','stay <ms>','listen','mode','guestbook','sign <text>','home','goodbye','rooms  (full catalog)','say <text> (everyone hears it, with where you are) / whisper <name> <text>','chat','quiet on|off','numbers on|off','discoveries [on|off]',
    mode==='hq'?'HQ controls: move / step / back / strafe / turn / heading / speed / crouch / pose':'LQ controls: explore / wander / auto / do <n>'
   ],
-  first_ten:['help','look','feel words','stay 5000','where','actions','worlds'],
+  first_ten:['help','look','feel words','stay 5000','where','actions','worlds','guestbook'],
   world_guide:guide?{total_rooms:guide.total_rooms,groups:guide.groups,note:'Broad regions only. Most places and activities stay undisclosed until you encounter them or explicitly ask for rooms/actions.'}:null,
   note:'The foyer is intentionally incomplete. Use actions where you stand; ask rooms only when you want the full catalog.'
  };

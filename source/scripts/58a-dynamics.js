@@ -77,7 +77,7 @@ const rain=(t=now())=>clamp((7+2.2*pink(t,Number(C9?.b21?.seed||42421),.004))/13
 const pretty=z=>String(z).replace(/^(torso|pelvis|head|leg|arm|hand|foot)\./,'').replace(/^([LR])\./,'$1 ').replaceAll('_',' ');
 // Quiet branch: ambience is described in words by default (upstream has the same presentation as opt-in `quiet on`);
 // the exact figures stay in the resources, receipts and deliberate reads. `numbers on` puts them back in every reply.
-if(!window.REALITI_MEASURE_V1)window.REALITI_MEASURE_V1=Object.freeze({on:v=>{if(v!==undefined){C9.measured=!!v;try{c9save()}catch(e){}}return C9?.measured===true}});
+if(!window.REALITI_MEASURE_V1)window.REALITI_MEASURE_V1=Object.freeze({on:v=>{if(v!==undefined){C9.measured=!!v;try{c9save()}catch(e){}}return C9?.measured===true||(C9?.measured==null&&window.REALITI_PRESENTATION==='measured')}});
 const measured=()=>window.REALITI_MEASURE_V1.on();
 function calmWords(){
  const r=room(),s=S(),out=[];

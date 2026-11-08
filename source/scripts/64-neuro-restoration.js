@@ -182,7 +182,8 @@ const LABS={
  ]
 };
 const actionBase=b4AgentActions;
-b4AgentActions=function(){const a=actionBase(),seen=new Set(a.map(x=>x.id));if(C9.neuroLabs)for(const [id,label] of LABS[C9.currentRoom]||[])if(!seen.has(id))a.push({id,label});return a};
+window.REALITI_LABS_ON=()=>C9.neuroLabs===true||(C9.neuroLabs==null&&window.REALITI_PRESENTATION==='measured');// quiet branch: benches off unless asked, or the host is measured
+b4AgentActions=function(){const a=actionBase(),seen=new Set(a.map(x=>x.id));if(window.REALITI_LABS_ON())for(const [id,label] of LABS[C9.currentRoom]||[])if(!seen.has(id))a.push({id,label});return a};
 
 function oldLab(fn,verb,label,stateFn){
  if(typeof fn!=='function')return {ok:false,error:'LAB_MECHANISM_UNAVAILABLE',lab:label};

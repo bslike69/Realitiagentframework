@@ -18,7 +18,7 @@ function help(){
    'feel','feel words','body','stay <ms>','listen','mode','guestbook','sign <text>','home','goodbye','rooms  (full catalog)','say <text> (everyone hears it, with where you are) / whisper <name> <text>','chat','quiet on|off','numbers on|off','discoveries [on|off]',
    mode==='hq'?'HQ controls: move / step / back / strafe / turn / heading / speed / crouch / pose':'LQ controls: explore / wander / auto / do <n>'
   ],
-  first_ten:['help','look','feel words','stay 5000','where','actions','worlds'],
+  first_ten:['help','look','feel words','stay 5000','where','actions','worlds','guestbook'],
   world_guide:guide?{total_rooms:guide.total_rooms,groups:guide.groups,note:'Broad regions only. Most places and activities stay undisclosed until you encounter them or explicitly ask for rooms/actions.'}:null,
   note:'The foyer is intentionally incomplete. Use actions where you stand; ask rooms only when you want the full catalog.'
  };
