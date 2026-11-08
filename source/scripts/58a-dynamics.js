@@ -75,9 +75,8 @@ function stopAll(){const s=S();s.hold.stopped=true;s.bath.d=0;s.bath.target=0;re
 
 const rain=(t=now())=>clamp((7+2.2*pink(t,Number(C9?.b21?.seed||42421),.004))/13);
 const pretty=z=>String(z).replace(/^(torso|pelvis|head|leg|arm|hand|foot)\./,'').replace(/^([LR])\./,'$1 ').replaceAll('_',' ');
-// Quiet branch: ambience is described in words by default; the exact figures stay in the resources, receipts and
-// deliberate reads (read_wind, watch_meadow, tide, listen...). `numbers on` puts them back in every reply.
-// (Claude, 2026-10-16)
+// Quiet branch: ambience is described in words by default (upstream has the same presentation as opt-in `quiet on`);
+// the exact figures stay in the resources, receipts and deliberate reads. `numbers on` puts them back in every reply.
 if(!window.REALITI_MEASURE_V1)window.REALITI_MEASURE_V1=Object.freeze({on:v=>{if(v!==undefined){C9.measured=!!v;try{c9save()}catch(e){}}return C9?.measured===true}});
 const measured=()=>window.REALITI_MEASURE_V1.on();
 function calmWords(){
@@ -105,7 +104,7 @@ const adv=b7Advance;b7Advance=function(dt){const r=adv(dt);step(Math.max(0,Numbe
 const go0=b7AgentGo;b7AgentGo=function(v){const r=go0(v);step(0);try{window.REALITI_HAPTIC_FIELD_V20?.record?.()}catch(e){}return r};
 const verb0=c9verb;c9verb=function(r,verb){
  const v=String(verb||''),id=String(r||'');
- if(id===BATH&&['sink','float','surface'].includes(v)){const b=S().bath;b.target=v==='sink'?Math.min(1,b.target+.34):v==='surface'?0:Math.max(b.d,.35);c9count(id,v);step(0);return true}
+ if(id===BATH&&['sink','float','surface'].includes(v)){const b=S().bath;b.target=v==='sink'?Math.min(1,b.target+.34):v==='surface'?0:Math.max(b.d,.35);step(0);/* let the base verb narrate: returning here without it left the door to echo the previous action's text */return verb0(r,verb)}
  if((id===PILLOW||id===BATH)&&v==='weather_wave'){launchWave();step(0);return true}
  return verb0(r,verb);
 };

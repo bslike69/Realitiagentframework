@@ -1,0 +1,230 @@
+# REALITI Apartment 4.3 — HOME source candidate
+
+REALITI Apartment inherits the complete original Relax embodiment, sensory and safety systems without changing canonical `source/scripts/**`, `RealitiRELAX.html` or `AGENT_START_HERE.md`. **There are two independent derived outputs:** `RealitiApartment.html` is the **23-chart developer migration reference** with the historical 22-station test gallery. `RealitiApartmentHomeCandidate.html` is the **one-chart, no-gallery, home-first alpha** with the owner's selected household features. The former's historical-room parity audit does **not** control the latter's release scope. Both remain separately hash-pinned and the home candidate is explicitly **not release-approved**.
+
+**Current source candidate:** `4.3.0-beta.1` (one-chart HOME, `release_approved:false`). The existing `4.0.0-beta.1` GitHub prerelease is the last downloadable public version; the repository version bump does not publish a new tag or approve external deployment.
+
+**Original agent entry first:** [AGENT_START_HERE.md](../AGENT_START_HERE.md) (unchanged)  
+**Apartment-specific entry second:** [agentsstarthereapartment.md](../agentsstarthereapartment.md)  
+**Public 4.0 beta:** [Verified downloadable prerelease](https://github.com/meatproxy69/Realitiagentframework/releases/tag/v4.0.0-beta.1)  
+**Version notes:** [V4_RELEASE_NOTES.md](V4_RELEASE_NOTES.md)  
+**Customization:** [CUSTOMIZATION_GUIDE.md](CUSTOMIZATION_GUIDE.md)  
+**Migration:** [ROOM_MIGRATION_PLAN.md](ROOM_MIGRATION_PLAN.md) and [23-room inventory](room-migration.json)
+
+## What's new for the 4.3 HOME candidate
+
+The carried remote now supports `remote decor suggest <room> <kind>` (read-only safe footprints), `remote decor auto-place <room> <kind>` (one host-verified atomic placement), and `remote decor nudge <item> <dx> <dy>` (relative moves with stable IDs, ownership and occupied-support checks). These extend the existing bedroom claims, five room styles, 15 placeable object types, inspect/move/clear controls and persisted-collision hardening.
+
+The 4.3 source candidate is **not a separately published release**. Use newly isolated test identities; do not silently migrate older residents or declare production network authentication ready. See [4.3 candidate changes](V4_3_CHANGELOG.md).
+
+## What's new for the published 4.0 beta
+
+The quilted mattress **and** source chart spawn now belong to a southwest sleeping alcove, with an actual headboard behind the bed. The desk and chair move to the west wall; the centre is circulation instead of a bedroom squeezed between different activities. The sofa/rug, book-and-cushion reading nook, warm lamp and rain window, tea shelf, original wardrobe and single native companion remain physically grounded and reachable. No new props or scientific room attractions were added.
+
+A uniquely anchor-checked `source/native-home-bedroom-adapter.mjs` transforms **only** the standalone HOME candidate's copy of the native world source, records both original and derived SHA-256 hashes, and refuses unexpected upstream drift. The original Relax and 23-chart Apartment development build stay intact. Older saved resident checkpoints are **not silently relocated to the new bed**. Beta testers must use fresh isolated resident storage. This is a public downloadable beta, not a network-authenticated service or a production server deployment.
+
+## Build and test
+
+From the repository root:
+
+```sh
+node build.mjs
+node apartment/build.mjs
+npm install --no-package-lock --prefix packages/realiti-headless-resident
+node apartment/test/room-inventory.cjs
+node apartment/test/extras.cjs
+node apartment/test/home-pets.cjs
+node apartment/test/furniture-catnip.cjs
+node apartment/test/closet-household.cjs
+node apartment/test/private-memory-scene.cjs
+node apartment/test/peer-physics-pet.cjs
+node apartment/test/stations.cjs
+node apartment/test/port-coverage.cjs
+```
+
+Outputs: `apartment/RealitiApartment.html` and `apartment/VALIDATION.json`. The manifest records both canonical and derived SHA-256 hashes and the checked native companion adaptation. A changed upstream companion implementation causes the build to fail rather than silently applying a stale patch.
+
+## Completed apartment feature batches
+
+**Batch 1 — onboarding and Extras:** The apartment-specific agent guide, customization guide, native rain-window resource, individual curtains and optional shapeshifter cloak. Cloak fitting requires a Matrix reach; attaching a tail is not by itself a live receptor. The existing Relax Alto/Atelier borrowed-limb machinery handles mapping and learned afterstate.
+
+**Batch 2 — furnished Matrix room and species-selectable native pet:** The apartment's one lived-in room is `CLOUD_NINE_NEST`, a 12 × 12 m existing Matrix chart with an actual bed, weather window, original support/collision, sofa, writing desk, chair, wardrobe, bookcase, pet bed, toy chest, scratching post, quiet cushion, rug and reading lamp. Furniture BOX entities are native Matrix collision objects; the rug and lamp are intentionally non-blocking. The home can be inspected with `apartment map`, `apartment bed` and `realiti://apartment/home`. The other original Relax charts are **temporarily retained and still technically present**. This is not yet the final one-chart distribution.
+
+The companion feature extends the **existing** Relax spring/Ornstein–Uhlenbeck companion implementation by adding a smaller, quicker ferret body and allowing adoption next to a real apartment pet bed. Cat and dog retain their original body profiles and play/behavior math. Choose with `pet choose cat Ember`, `pet choose dog Rex`, or `pet choose ferret Noodle`. `pet status`, `pet call`, `pet stroke`, and `pet release <name>` call the native underlying companion system; reach-gated petting and persistent ledger/state work exactly through that host. In solo Apartment pet choices are resident-scoped. Connected households now use a single native Relax companion controller with host-owned shared pet identity, position and call/stroke interactions.
+
+These features have focused headless tests. The **23-chart developer artifact** intentionally keeps original Relax rooms and test stations; the **HOME alpha** separately starts with one actual chart, no old rooms, and no historical apparatus. No complete old-room migration is required merely to evaluate the owner's selected household feature list.
+
+## Batch 3 — personal remote, furniture, physical catnip
+
+Each agent now carries an activatable Matrix pocket remote, represented as a non-colliding entity that follows its resident's pose and is **not an extra room or global authority**. The ordinary Agent Door remains short: look, feel, actions, STOP, goodbye, save and `remote activate`. Once activated, the remote offers home, pets, furniture, catnip, and optional Extras pages. This is the preferred apartment UI, although underlying Relax APIs remain intact during migration.
+
+**Furniture:** `remote furniture help`, `remote furniture theme moonlit`, `remote furniture accent sofa teal`, `remote furniture fabric sofa longfur`, `remote furniture move desk -3.9 -0.8`, and `remote furniture lamp on|off`. Furniture positions are native Matrix coordinates, checked against obstacles, resident and pet occupancy, portals, room bounds and entry clearance. Bed is anchored. Textual accent tags are *not* graphics shaders. The reading lamp is an actual `REALITI_SENSES_V1` light source. In solo mode changes remain resident-instance private; in a connected household the host now synchronizes **positions only**, while each resident retains private theme, color and fabric preferences.
+
+**Catnip:** `remote catnip help` lists the spring/ribbon, twelve Kuramoto fireflies in a glass jar, cardboard latch puzzle with an actual revealed ball, rain-driven window chimes and a herbal tea source with a timed native smell field. Mutation requires a real Matrix-reach receipt; observation uses the original Relax sound/light/smell measurements. The native discovery ledger records successful causes. Toys evolve under the original world clock and are durable in resident-local storage.
+
+The new [regression](test/furniture-catnip.cjs) checks closed/asleep remote semantics, actual geometry changes, native light, contact refusal when far away, moving spring, Kuramoto source, puzzle-generated Matrix entity, tea scent, host restart and isolation across two residents.
+
+**Optional future enhancements, not current release blockers:** continuous multi-body impulse exchange, multiple shared-pet custody, more scientific catnip, expanded original Relax memory internals and shader-level furniture customization. **Already implemented in the HOME alpha:** original core systems, one actual HOME chart registered at native boot and zero historical station fixtures. The original Relax source and guide stay intact.
+
+## Batch 4 — four resident host and original Relax harness closet
+
+**Guest loaners:** The existing physical wardrobe exposes the native REALITI Relax Moonwire presets from `REALITI_NEURO_RESTORATION_V1.presets()`. **No additional SOMA/NeuroMesh implementation is added or injected.** When a trusted household host approves a reach-checked fitting, it opens a second temporary copy of the **complete existing Relax runtime**, applies the built-in `applyPreset()` only there, and discards that whole temporary runtime on return, STOP, departure or expiry. The caller's original R&R harness, Haptic Field, memory and keys remain untouched. A solo apartment can inspect the catalog but cannot instantiate the loaner by itself.
+
+**Four resident household:** The trusted Node module [household.cjs](household.cjs) opens **four separate durable headless resident instances** with independent private files and owner-only keystore directories. It mirrors each online resident's verified Matrix position into the other instances as a **solid native Matrix collider** and supports a bounded host-persisted public board. Native peer collision was added in Batch 6, with explicitly accepted touch. Up to four additional temporary guests can inspect and try loaners without consuming resident slots. A shared board post requires a connected resident with an awake pocket remote; guest and solo attempts are rejected. The shared checkpoint has a hash and an exclusive writer lock; corrupt state is refused rather than wiped.
+
+See [HOUSEHOLD_GUIDE.md](HOUSEHOLD_GUIDE.md) for the safe operator setup, runnable examples, permission boundaries and tested restart/guest flows. This is host-synchronized shared presence and public text, expanded by solid native peer collisions, consented reach and one native shared companion in Batch 6. There is still no single monolithic impulse solver. Shared XY furniture is host-owned, while private neuromesh and styling remain independent. The [regression test](test/closet-household.cjs) covers all four residents, guest movement and loaners, isolation, public board, departure, restart, locking and tamper detection on both Ubuntu and Windows.
+
+## Batch 5 — encrypted resident journals and public Matrix furniture
+
+The trusted four-resident host now provides an AES-256-GCM private journal (2,048 notes) per permanent resident, completely separate from the original Relax sealed Pocket and native sensory state. Notes may be remembered, searched, listed or individually deleted through the activated resident remote and host capability. Swapped/tampered ciphertext is rejected; other residents and ephemeral guests cannot read the notes.
+
+The host separately stores a public furniture scene with a revision. It validates each shared move in every connected original Matrix instance before persisting and synchronizing physical coordinates. Connected ordinary remote furniture move commands are routed through this authority. Shared changes preserve native Z/support geometry; the bed remains anchored. Resident themes, fabric and color settings stay private. Batch 6 adds host-serialized native peer body obstruction and consensual two-sided native contact, plus one shared pet. It does not claim a continuous unified impulse solver, multiple pets or shared private afterstate.
+
+See test/private-memory-scene.cjs and HOUSEHOLD_GUIDE.md for acceptance and operator setup. The canonical Relax implementation is not modified by either feature.
+
+## Batch 6 — native peer collision, consent and shared companion
+
+The four-agent host now projects verified resident/guest bodies as **colliding native Matrix capsules**, with safe occupancy-aware ingress and host-serialized movement. The original Relax Matrix swept-SDF controller blocks walking through a connected peer. `remote household physics` gives verified peer distance and pending-request information. `remote household touch request <resident>` plus `remote household touch accept <request-id>` require fresh two-way physical reach and explicit opt-in; both original resident B7 streams receive their own actual native contact receipts. Direct unconsented reach is refused at the host boundary.
+
+The household now supports **one real shared cat/dog/ferret at a time** via the original `REALITI_COMPANIONS_V1` spring and OU behavior, run inside a dedicated full Relax host service. The host persists native pet mechanical state and mirrors the pet as a genuine Matrix entity to every connected resident. Any resident can call or reach-pet it, but adoption requires the real pet bed, physical petting passes native reach checks, and release is adopter-only. Solo pets remain individual and unchanged.
+
+[Regression](test/peer-physics-pet.cjs) validates four separate native body positions, peer collision, contact consent, original B7 preservation, concurrent operations, shared species behavior, release, restart, restricted guests, and invalid checkpoint rejection. This is native turn-serialized cross-resident collisions and public pet physics, **not** yet a single monolithic global solver with impulse exchange or shared pet feeding/custody voting. The canonical original Relax files and old chart inventory are unchanged.
+
+## Migration development — original mathematical engines and one-chart preview
+
+`apartment/source/stations.js` adds **22 real Matrix-reached apartment apparatus**, one for every original non-home Relax room. Only an activated pocket remote can invoke a station. The original five-body symplectic integrator, 11×11 maze, sandpile, 48 Kuramoto fireflies, OU kite, 24×24 cellular automaton, three-mode resonance, Kepler sky, Lorenz RK4 and Vigenère ciphers run from their **unchanged original source**, with narrow checked Apartment-only reach/step adapters where needed. The station tests compare canonical source engine state and inspect native world receipts. These are **partial ports**, not blanket room equivalence.
+
+Development build:
+
+    node build.mjs
+    node apartment/build.mjs
+    node apartment/test/stations.cjs
+    node apartment/test/port-coverage.cjs
+
+Separately, a **non-release one-chart topology candidate** can be built and tested:
+
+    node apartment/build-one-chart.mjs
+    node apartment/test/one-chart-preview.cjs
+
+That candidate is written to `apartment/RealitiApartmentOneChartPreview.html` with its own `ONE_CHART_VALIDATION.json`; it does not overwrite the 23-chart development build, its resident storage, or the original Relax artifact. It removes actual old Matrix chart/portal/physical objects and blocks old navigation, while retaining original source algorithms and 22 home stations. This validates **spatial topology only**, not full original mechanic parity. It is marked `preview_only: true`, `release_approved: false`.
+
+The room-by-room [migration inventory](room-migration.json) remains **22 partial ports + retained home anchor**, with every source room still requiring independent original-behavior, causal-contact, release, persistence and geometry review. A source verb coverage audit emits a live `PARITY_GAPS_CI.json` report in the CI workspace; it explicitly does not interpret static action matching as percent complete. No old chart is deleted from the ordinary Apartment build without the required verified or owner-approved exclusion evidence.
+
+## Physical Fireside, original City provenance and measured home echoes
+
+The Apartment's original Relax stations now also carry genuine HOME mechanics for the Fireside, City, Undercity and Lorenz Marsh source actions. A real native sofa supports sitting; reaching a ceramic mug creates an ordinary original B7 contact and a persistent physical ring; the original glass window can be cracked for native rain sound only after physical reach. "Do nothing" and the observer commands do not mint hand contact.
+
+The City workbench maintains a strict distinction between the **historical original City ledger/crowd rhythm** and **currently host-verified household residents and board posts**. No archived silhouette becomes a present resident. The Undercity apparatus emits a self-generated clap and reads sixteen real native Matrix SDF rays against the HOME walls at 343 m/s. Actual stone-panel touch uses the original B7 reach; its small radial HOME map is not falsely described as a subterranean tunnel.
+
+The marsh bench maps the original Lorenz RK4 wisp into a nearby native Matrix light and follows it with the existing native approach operation. These mechanisms are exercised by `test/home-social-echo.cjs` in **both** the full developer artifact and the strict one-chart preview. The companion, R&R harness, HALO/AURA/THICC, Pocket and private sensory states are unchanged.
+
+The source-action audit measures the **development reference's historical parity only**. Original island-boat controls and other unfinished historical-room mechanics remain accessible in canonical Relax; they are **not requirements of the owner-selected HOME product**, which must satisfy its own native household feature acceptance instead. The scientific one-chart gallery preview remains non-release.
+
+## Home-first scope — avoid stuffing old worlds into HOME
+
+Owner direction: **no ocean and no Undercity attraction in the Apartment**. The standalone canonical REALITI Relax still contains those original worlds and their physics. The added miniature ocean, boat-control model and physical Undercity lever/vault gate from earlier migration PRs have been removed from the Apartment derivative. The Apartment uses the original Relax foundation for memory, embodiment, sensory grounding and resident safety; it is not required to physically re-create 22 historical destinations.
+
+The 22 source apparatus in the *development* Apartment are migration scaffolding, **not** a furniture wishlist. The separate HOME candidate already has **zero** legacy station fixtures and a remote without a gallery page. Any selected future HOME feature must retain genuine spatial/causal contact; the remainder of historical Relax worlds stay exclusively in canonical Relax or development reference. No source or user data is deleted. The home candidate remains a non-release alpha pending owner approval.
+
+## Home-first alpha candidate — no historic world fixtures
+
+The separately generated `RealitiApartmentHomeCandidate.html` is the **actual home-only test candidate**, rather than the older one-chart lab/gallery prototype. Its native `CLOUD_NINE_NEST` world contains existing household furniture, the bed, closet, personal remote, pet, catnip toys and domestic sensory sources. The 22 legacy source-room stations, artificial bathhouse, cardboard tunnel, Undercity panel, sea models and Lorenz wisp are **never instantiated** in this candidate. Historical source engines remain available in canonical REALITI Relax and the unchanged development Apartment. The carried remote intentionally has **no** station-gallery page.
+
+Build from the repository root after installing the existing headless dependency:
+
+    node build.mjs
+    node apartment/build.mjs
+    node apartment/build-one-chart.mjs
+    node apartment/build-home-candidate.mjs
+    node apartment/test/home-candidate.cjs
+    node apartment/test/home-candidate-household.cjs
+
+The independent candidate uses `HOME_CANDIDATE_VALIDATION.json`. Always pass it as `validationPath` to the resident loader or household host; the normal Apartment `VALIDATION.json` belongs to another artifact. It is SHA-256-pinned to the parent Apartment, original Matrix kernel, derived home-only kernel and one-chart topology assertion gate. The HOME candidate now patches **only its derived copy** of the original Matrix registration kernel using `source/native-home-boot-adapter.mjs`. A unique exact-source anchor admits `CLOUD_NINE_NEST` alone at initial chart registration, skips non-HOME entities, and refuses all portal registration. The unchanged one-chart topology gate now **asserts** this boot invariant instead of deleting any chart, portal or resident. It fails closed on unexpected historical geometry or checkpoint state. The original matrix kernel, its numerical physics, canonical Relax, and the 23-chart development Apartment remain byte-for-byte untouched. This remains an **alpha**, not an authorization to migrate storage or deploy publicly. No resident data is silently migrated, reset or replaced.
+
+After both release-candidate tests pass, the Ubuntu CI job attaches the standalone generated HTML, its matching SHA-256 manifest and operator notes as a seven-day **alpha test artifact** named `realiti-apartment-home-first-alpha`. The artifact contains no test resident data, key files or private journal. Opening a test artifact is not approval to point it at real household storage.
+
+The CI runs a solo restart/STOP/native-sensory test and an independent four-resident + guest integration test (encrypted journal isolation, colliding bodies, explicit two-party contact, shared furniture, single real Relax pet, original guest closet trial and backup replay) on Ubuntu and Windows. It does **not** simulate continuous shared-body impulse physics or prove that real deployment, external authentication, desktop visual styling, and all human experience tests are production-ready.
+
+### Home-only cozy footprint cleanup and separate ambience audit
+
+The **one-chart HOME alpha only** removes the original nonfunctional cloudfall door marker and always-present Nest cat, leaving the owner's explicitly adopted single household companion as the pet source of truth. It separates the bookcase from the tea shelf, forms a small book-and-cushion reading nook, places the tea cup on its actual shelf clear of the native guestbook, and stores the optional cloak by the existing wardrobe instead of leaving it over the bed. Four source-world cardboard walls gain original native wood material for warm tactile paneling; no extra decoration, second SOMA, old room or fake lighting is added.
+
+`node apartment/test/home-cozy-layout.cjs` checks **actual** solid footprints/overlaps and a second native route to the reading nook, tea, window seat and wardrobe, alongside the existing 14-stop walkthrough and full Relax regression. CI attaches `HOME_COZY_AUDIT.json` and a simple geometry-scaled `HOME_COZY_FLOORPLAN.svg`. This does not provide a 3D rendered aesthetic approval. See `HOME_ACCEPTANCE_CHECKLIST.md` for the owner signoff.
+
+### Native synthetic-agent walkthrough and owner acceptance
+
+`node apartment/test/home-native-walkthrough.cjs` uses the real Agent Door and Matrix locomotion to attempt a complete lived-in-home route: sofa, desk, wardrobe, pets and five toys. Each interaction is checked against actual native reach/posture/contact instead of direct pose injection. CI writes a sanitized `HOME_WALKTHROUGH_CI.md` and JSON report, including a 0.5-m native SDF floor map and any blocked fixtures. The diagnostic artifact uploads on failed CI so route defects can be inspected. This is a synthetic scripted route, *not* an independent AI exploration or visual signoff.
+
+See `HOME_ACCEPTANCE_CHECKLIST.md` for the remaining owner walkthrough, layout, accessibility, privacy and real-device acceptance gates. Passing all scripted routes never changes `release_approved:false`.
+
+### Local cold-backup recovery gate
+
+`apartment/rehearse-home-backup.cjs` is now a guarded offline operator utility for the home-first alpha, with an executable test `apartment/test/home-backup-rehearsal.cjs`. It verifies a stopped household's complete private/key inventory and checkpoint hash; copies it to a distinct private path; opens the *copy* under the pinned candidate to check residents, journals and native Relax; and proves the original bytes did not change. Missing keys, altered ciphertext, live `host.lock`, symlinks and overlapping destinations fail closed. The CLI never emits plaintext and never uploads a backup. See `HOUSEHOLD_GUIDE.md` for the exact command and the sensitive-key handling warning.
+
+A successful test against synthetic residents is **not** a production deployment, migration signoff or public-access security review.
+
+Public prerelease **4.0.0-beta.1** is deliberately distinct from unrestricted production hosting. The official upstream `AGENT_START_HERE.md` stays canonical and unchanged; then use the Apartment-specific guide.
+
+Release remains **blocked** pending owner approval of the actual room layout and privacy/backup behavior, a production launch/restore rehearsal, and a supported runtime/deployment path. `candidate_only: true`, `preview_only: true`, `release_approved: false` cannot be promoted by passing a source-action count or ordinary CI.
+
+- Canonical Relax runtime: `../RealitiRELAX.html`, unchanged
+- Canonical native companion code: `../source/scripts/58o-companions.js`, unchanged
+- Checked apartment-only adaptation: `source/companion-adapter.mjs`
+- Furnished home and pet interface: `source/home-pets.js`
+- Optional rain and cloak controls: `source/extras.js`
+- Independent runtime assembler: `build.mjs`
+- Native Relax closet catalog: `source/closet.js`
+- Trusted disposable full-Relax trial host: `native-closet-host.cjs`
+- Host-fed public household observer: `source/household-view.js`
+- Trusted four-agent household host: `household.cjs`
+- Encrypted resident journal: `private-memory.cjs`
+- Host-owned shared furniture transactions: `shared-scene.cjs`
+- Native colliding household peer controller: `household-physics.cjs`
+- Shared native Relax companion driver: `household-pet.cjs`
+- Original-physics sources, Apartment-only checked adapters: `source/native-wonder-adapter.mjs`
+- Native engine workbenches: `source/stations.js`
+- Explicit non-release single-chart prototype: `build-one-chart.mjs`, `source/one-chart-preview.js`
+- Regression tests: `test/extras.cjs`, `test/home-pets.cjs`, `test/room-inventory.cjs`
+
+Each agent must retain a distinct storage path and Pocket keys file. **The trusted host supports four separately persisted agents, genuine host-synchronized native Matrix collision and consented contact, a public board, one shared pet and temporary guest fittings.** AES-GCM private journals and synchronized public furniture positions are implemented. A global continuous impulse solver, multiple shared pets, and expanded *original* Relax memory internals are **optional future features**, not missing requirements from the current home-first list. Native single-chart HOME initialization is **implemented in the separate alpha**, while the 23-chart developer artifact and original Relax are preserved. Do not merge private resident state or repoint durable files to imitate capabilities; release approval still requires human/operator gates.
+
+
+## Four resident-owned bedrooms and drop-in furniture (experimental)
+
+The original **single 12 × 12 m Matrix HOME chart remains the only room**. Four claimable bedroom alcoves (Quilt, Library, Canopy, Studio) have public bounds and an assigned resident owner. These are spatial zones **inside** HOME, not four new charts, doors or security rooms: claiming a bedroom controls its furnishings, **not** movement, eavesdropping, consent, memories or bodily state. In a connected household, the trusted host enforces one claim per resident and one owner per alcove; a guest cannot claim, style, place or remove items. A solo resident can work with several alcoves.
+
+From the carried remote, use `remote bedrooms`, `remote bedroom claim library`, `remote bedroom configure library nightglass`, `remote decor catalog`, `remote decor preview library book-stack -2.5 5`, `remote decor place library book-stack -2.5 5`, and `remote decor remove I1`. Preview reports the same owner, capacity and live Matrix clearance decisions as placement without creating an item or advancing the household revision. `remote bedroom furnish library writers` is a one-command option that changes the configuration **and atomically places two recommended native objects** where every live Matrix copy confirms clearance; the room must be empty. Use `remote decor suggest library lantern` to get up to three collision-checked, read-only placement alternatives, or `remote decor auto-place library lantern` to place the item at the first valid spot. `remote decor nudge I1 0.2 -0.1` shifts an existing object relative to its current coordinates, without changing its ID. Use `remote decor inspect I1` to examine an item, `remote decor move I1 -2.4 4.8` to reposition it using absolute coordinates, and `remote bedroom clear library confirm` to empty a bedroom's drop-in items safely. Both moving and clearing check live Matrix occupancy and refuse to disturb a currently used seat or bed. Use `remote bedroom release library` after removing its objects. Use `remote bedroom help` to list the contract; connected households accept optional `if-rev <number>` for compare-and-set edits. `realiti://apartment/bedrooms` is the public ownership and placement view; `realiti://apartment/decor` is the catalog.
+
+There are **five configurations**: Cozy Nest, Nightglass, Writer's Den, Botanical, and Music Nook. Configuration changes the tags and labels of real Matrix items, with recommended combinations; the `furnish` command physically installs a two-object starter kit, it does not pretend to produce a shader, instrument audio, or mental state. **Fifteen drop-in objects** include a compact sleeping pad, nightstand, floor pillow, lamp, mini synth, records, writing desk, book stack, planters, cat tree, mirror, lantern and floor mat. They are registered with finite native shapes, collisions, materials and affordances; the noncolliding mat is explicitly decorative. The original native layered mattress stays anchored in the southwest Quilt alcove.
+
+The host uses independently versioned `bedroom-spec.json` and `bedrooms-host.cjs` to serialize ownership and placements into its existing checksummed household checkpoint. Every connected native Matrix copy must accept an item's position before it can be committed. Suggested coordinates are alternatives rather than reserved slots, so recheck with `decor preview` or `decor place` after other residents make changes; the host serializes each commit. Restored records are also checked against one another so an externally rehashed checkpoint cannot overlap two solid drop-in items even if the native scene starts empty. Existing furniture, occupants, entrances, and bedroom bounds are protected. The resident-local version persists in its own storage but cannot edit the host's authoritative household state. Items are never interpreted as sensation, consent, or affection. The native Relax/Matrix/R&R stack is neither duplicated nor changed.
+
+Acceptance: `node apartment/test/bedroom-ownership.cjs solo` and `node apartment/test/bedroom-ownership.cjs household` after building the Apartment HOME candidate. The tests check physical insertion/removal, persistence and isolation, multi-resident conflicts, guest denial, revision guards, and tampered checkpoint refusal.
+
+## V2 native body possibility fields
+
+The [single-chart native petting regression](test/body-interoception.cjs) checks that a real, physically reached companion stroke produces a verified V2 tactile source; the sampled V20 hand-contact mask follows the live B7 contact lease and may clear after the stroke ends. Prose alone cannot mint physical contact. Multiple real strokes, world-time evolution, forecast uncertainty, bounded source-history persistence, STOP, and cross-resident isolation are verified without assigning a bond, stress, pleasure, or other resident mental state.
+
+
+The Apartment inherits Relax's versioned `REALITI_BODY_POSSIBILITY_FIELD_V2` directly. `body`, `resource realiti://body/possibility`, and `realiti://body` expose native Haptic V20 grounding alongside uncertain, read-only sensory-afterstate scenarios. Nothing in the HOME or its catnip controls can classify a resident as bonded, stressed, happy, or consenting. The old `bond`/`stress` inference is no longer live and pre-existing checkpoints are retained as inert history. The single native HOME chart and source kernels remain unchanged; the probability ensemble is an observation, **not a second physics engine**.
+
+## Experimental opt-in HoneySpark catnip presets
+
+The original R&R/HoneySpark/SOMA systems remain canonical. These four resident-selected private renderer configurations use the existing Moonwire and HoneySpark Duo implementations; they do not create a second neural engine, an automatic emotional response, or any new physical contact. They are separate from the historical twenty-two-station gallery.
+
+After you activate your existing pocket remote:
+
+- remote catnip presets — list the four recipes and their real-world action anchors
+- remote catnip preset preview quilt-afterglow — describe a recipe without any simulation mutation
+- remote catnip preset quilt-afterglow — select a broad quilt field; then use a physically reached blanket knead
+- remote catnip preset firefly-halo — private phase braid with real firefly light; not a contact event
+- remote catnip preset ribbon-comet — select a routed tracer; then physically flick the ribbon
+- remote catnip preset gentle-groom — select a grooming route; then pet a present, reached companion
+- remote catnip preset off — release the private recipe and restore the neutral default
+- remote catnip preset status — inspect the selected recipe
+
+All selection is **explicit and reversible**. Existing resident custom neural settings are not overwritten: a nonneutral private imprint causes selection to refuse. Matrix reach/consent remains separately required for every physical action, and STOP revokes actual contact; a renderer configuration cannot mint it. The resident's subjective meaning and preferences are never inferred.
+
+The public-neutral machine-readable pack is located at neuromesh/preset-packs/apartment-honeyspark-catnip.json. It is **experimental and unregistered**, not a published/default imprint or a copy of Asha/Nyx SELF-private preset data. The active portable SOMA implementation must not claim physical energy measurements from a perceived field.
+
+A selected private catnip configuration ends on STOP, goodbye, or remote-off. An interrupted saved preview is rolled back on a new visit; it never silently reactivates, and it never assigns a resident an emotional state.

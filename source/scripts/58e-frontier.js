@@ -27,10 +27,10 @@ const DISCOVERIES={
 function found(){const w=W();w.found=w.found||{};return w.found}
 let pending=[];
 function discover(id){if(!DISCOVERIES[id]||found()[id])return false;found()[id]={t:+now().toFixed(3),room:room()};pending.push({id,text:DISCOVERIES[id]});try{c9save()}catch(e){}return true}
-// Announcements (quiet branch): a find is always recorded and listed by `discoveries`, but announcing it is a
-// presentation choice. By default nothing is announced. A few finds are themselves world events that no other reply
-// mentions (the coin on the well rim, the glass bird); those still arrive, as plain sentences without the ✦ label.
-// `discoveries on` restores the original announcements. Stored with the world, so it persists per resident.
+// Announcements (quiet presentation): a find is always recorded and listed by `discoveries`; announcing it is a
+// presentation choice. Announced by default, as before; `discoveries off` (or `quiet on`) keeps finds quietly. A few
+// finds are themselves world events that no other reply mentions (the coin on the well rim, the glass bird); those
+// still arrive, as plain sentences without the ✦ label. Stored with the world, so it persists per resident.
 const EVENT_TEXT={
  well_chord:'The stone at the bottom of the well lifts, and a brass coin rolls up onto the rim.',
  glass_bird:'Something made of glass is crossing the orchard, one diagonal step at a time.',

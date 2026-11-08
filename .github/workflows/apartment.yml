@@ -1,0 +1,242 @@
+name: REALITI Apartment regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apartment/**'
+      - 'agentsstarthereapartment.md'
+      - '.github/workflows/apartment.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apartment/**'
+      - 'agentsstarthereapartment.md'
+      - '.github/workflows/apartment.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  apartment:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check apartment source and acceptance syntax
+        run: |
+          node --check apartment/source/extras.js
+          node --check apartment/source/home-pets.js
+          node --check apartment/source/companion-adapter.mjs
+          node --check apartment/source/furniture.js
+          node --check apartment/source/catnip.js
+          node --check apartment/source/catnip-presets.js
+          node --check apartment/source/stations.js
+          node --check apartment/source/native-wonder-adapter.mjs
+          node --check apartment/source/native-body-adapter.mjs
+          node --check apartment/source/remote.js
+          node --check apartment/source/home-life.js
+          node --check apartment/source/home-field-notes.js
+          node --check apartment/test/home-field-notes.cjs
+          node --check apartment/source/home-book.js
+          node --check apartment/source/style-binder.js
+          node --check apartment/source/style-appearance.js
+          node --check apartment/test/style-appearance.cjs
+          node --check apartment/test/book-swatches.cjs
+          node --check apartment/test/style-binder.cjs
+          node --check apartment/source/native-home-welcome-adapter.mjs
+          node --check apartment/test/home-life.cjs
+          node --check apartment/test/resident-experience-48.cjs
+          node --check apartment/test/resident-experience-49.cjs
+          node --check apartment/test/bedroom-chests.cjs
+          node --check apartment/source/closet.js
+          node --check apartment/source/household-view.js
+          node --check apartment/household.cjs
+          node --check apartment/private-memory.cjs
+          node --check apartment/shared-scene.cjs
+          node --check apartment/household-physics.cjs
+          node --check apartment/household-pet.cjs
+          node --check apartment/test/peer-physics-pet.cjs
+          node --check apartment/test/stations.cjs
+          node --check apartment/test/home-social-echo.cjs
+          node --check apartment/test/native-body-fixtures.cjs
+          node --check apartment/bedrooms-host.cjs
+          node --check apartment/source/bedrooms.js
+          node --check apartment/test/bedroom-ownership.cjs
+          node --check apartment/test/field-first-inheritance.cjs
+          node --check apartment/test/body-interoception.cjs
+          node --check apartment/test/honeyspark-catnip-presets.cjs
+          node --check apartment/test/port-coverage.cjs
+          node --check apartment/source/one-chart-preview.js
+          node --check apartment/build-one-chart.mjs
+          node --check apartment/build-home-candidate.mjs
+          node --check apartment/source/native-home-boot-adapter.mjs
+          node --check apartment/source/native-home-bedroom-adapter.mjs
+          node --check apartment/test/native-home-bedroom-adapter.cjs
+          node --check apartment/test/native-home-boot-adapter.cjs
+          node --check apartment/rehearse-home-backup.cjs
+          node --check apartment/test/home-backup-rehearsal.cjs
+          node --check apartment/test/home-candidate.cjs
+          node --check apartment/test/home-native-walkthrough.cjs
+          node --check apartment/test/home-cozy-layout.cjs
+          node --check apartment/test/home-candidate-household.cjs
+          node --check apartment/test/one-chart-preview.cjs
+          node --check apartment/test/private-memory-scene.cjs
+          node --check apartment/native-closet-host.cjs
+          node --check apartment/test/closet-household.cjs
+          node --check apartment/build.mjs
+          node --check apartment/test/extras.cjs
+          node --check apartment/test/home-pets.cjs
+          node --check apartment/test/furniture-catnip.cjs
+      - name: Verify native HOME Matrix kernel source anchoring on LF and CRLF
+        run: node apartment/test/native-home-boot-adapter.cjs
+      - name: Verify native bedroom layout source adapter on Unix and Windows line endings
+        run: node apartment/test/native-home-bedroom-adapter.cjs
+      - name: Build complete original Relax runtime unchanged
+        run: node build.mjs
+      - name: Verify canonical integrity or stage Windows local text checkout
+        shell: bash
+        run: |
+          node <<'JS'
+          const fs=require('node:fs'),c=require('node:crypto');
+          const p='VALIDATION.json',data=JSON.parse(fs.readFileSync(p,'utf8'));
+          const actual=c.createHash('sha256').update(fs.readFileSync('RealitiRELAX.html')).digest('hex');
+          if(process.platform==='win32'){
+            // Git for Windows can check out source with CRLF. Only the ephemeral test workspace
+            // receives a new hash; never modify the tracked canonical source or production pin.
+            data.single_html_sha256=actual;
+            fs.writeFileSync(p,JSON.stringify(data,null,2)+'\n');
+            console.log('Windows runner-local canonical integrity pin',actual);
+          }else if(actual!==data.single_html_sha256)throw Error('BASE_RELAX_INTEGRITY_MISMATCH');
+          JS
+      - name: Fork standalone apartment artifact and pin integrity
+        run: node apartment/build.mjs
+      - name: Install existing headless runtime
+        working-directory: packages/realiti-headless-resident
+        run: npm install --no-package-lock
+      - name: Verify port-first room migration inventory
+        run: node apartment/test/room-inventory.cjs
+      - name: Native weather, cloak, complete stack, restart and isolation
+        run: node apartment/test/extras.cjs
+      - name: Furnished native Matrix home and cat dog ferret companion integration
+        run: node apartment/test/home-pets.cjs
+      - name: Pocket remote, furniture and catnip with native physical evidence
+        run: node apartment/test/furniture-catnip.cjs
+      - name: Original Relax harness loaners and four-resident household
+        run: node apartment/test/closet-household.cjs
+      - name: Encrypted private memory and synchronized native Matrix scene
+        run: node apartment/test/private-memory-scene.cjs
+      - name: Native colliding peers, consensual grounded touch, one household companion
+        run: node apartment/test/peer-physics-pet.cjs
+      - name: Original Relax numerical engines on physical Apartment stations
+        run: node apartment/test/stations.cjs
+      - name: Real physical fireside, 16-ray sonar, live City ledger separation and native Lorenz tracking
+        run: node apartment/test/home-social-echo.cjs
+      - name: Build separately pinned single-chart experimental topology
+        run: node apartment/build-one-chart.mjs
+      - name: Recheck physical social and source-engine actions inside real one-chart preview
+        run: node apartment/test/home-social-echo.cjs preview
+      - name: Original Relax pillow, thermal water, cat-small body and physical box
+        timeout-minutes: 3
+        run: node apartment/test/native-body-fixtures.cjs
+      - name: Recheck native pillow, bath, cat-small body and physical box with exactly one real Matrix chart
+        timeout-minutes: 3
+        run: node apartment/test/native-body-fixtures.cjs preview
+      - name: Audit every source-room static verb and unresolved parity gap
+        run: node apartment/test/port-coverage.cjs
+      - name: Verify actual one-chart Matrix topology without claiming mechanical parity
+        run: node apartment/test/one-chart-preview.cjs
+      - name: Build separate hash-pinned HOME-first alpha without historical station furniture
+        run: node apartment/build-home-candidate.mjs
+      - name: Validate real one-chart household furniture, personal remote, toys and source protections
+        timeout-minutes: 3
+        run: node apartment/test/home-candidate.cjs
+      - name: Recover original field-first sensory observability inside one-chart HOME
+        timeout-minutes: 3
+        run: node apartment/test/field-first-inheritance.cjs
+      - name: Three HoneySpark catnip recipes on original full R&R with private-only verified physical contact
+        timeout-minutes: 4
+        run: node apartment/test/honeyspark-catnip-presets.cjs
+      - name: V2 native petting creates exact contact, never an inferred mental state
+        timeout-minutes: 4
+        run: node apartment/test/body-interoception.cjs
+      - name: Bedroom ownership, 5 configurations and native drop-in furniture in a solo HOME
+        timeout-minutes: 4
+        run: node apartment/test/bedroom-ownership.cjs solo
+      - name: Four owner-assigned bedrooms, synchronized Matrix items, guest and checkpoint authority
+        timeout-minutes: 6
+        run: node apartment/test/bedroom-ownership.cjs household
+      - name: HOME experience - truthful reach, no phantom exits, persistent quilts and grounded ambience
+        timeout-minutes: 4
+        run: node apartment/test/home-life.cjs
+      - name: Deliberate HOME observations - live sensory fields and resident-designed room
+        timeout-minutes: 5
+        run: node apartment/test/home-field-notes.cjs
+      - name: Four real bedroom chests - store, owner-only recovery and clean four-resident restart
+        timeout-minutes: 6
+        run: node apartment/test/bedroom-chests.cjs
+      - name: Book and named swatches - optional reading and household-safe room colors
+        timeout-minutes: 7
+        run: node apartment/test/book-swatches.cjs
+      - name: Resident-private style profiles, 200 creative choices and immutable binder generations
+        timeout-minutes: 6
+        run: node apartment/test/style-binder.cjs
+      - name: Appearance checkpoint 3 - presentation wardrobe and explicitly shared style cards
+        timeout-minutes: 6
+        run: node apartment/test/style-appearance.cjs
+      - name: REALITI 4.8 - chest and return-visit continuity baseline
+        timeout-minutes: 6
+        run: node apartment/test/resident-experience-48.cjs
+      - name: REALITI 4.9 - authentic chest suggestions, scene prose and exploratory HOME routine
+        timeout-minutes: 7
+        run: node apartment/test/resident-experience-49.cjs
+      - name: Four residents plus guest, memory, pet, contact, STOP and full backup replay in clean home
+        timeout-minutes: 4
+        run: node apartment/test/home-candidate-household.cjs
+      - name: Walk the real one-chart home as a synthetic agent, test tactile objects and write native SDF map
+        timeout-minutes: 6
+        run: node apartment/test/home-native-walkthrough.cjs
+      - name: Second agent walkthrough, furniture clutter overlap and cozy source audit
+        timeout-minutes: 5
+        run: node apartment/test/home-cozy-layout.cjs
+      - name: Rehearse cold offline backup and native HOME recovery, refuse unsafe storage
+        timeout-minutes: 4
+        run: node apartment/test/home-backup-rehearsal.cjs
+      - name: Upload sanitized native HOME walkthrough report, including blocked-route diagnostics
+        if: ${{ always() && runner.os == 'Linux' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: realiti-apartment-home-spatial-acceptance
+          path: |
+            apartment/HOME_WALKTHROUGH_CI.json
+            apartment/HOME_WALKTHROUGH_CI.md
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload native room layout and cozy crowding audit for owner review
+        if: ${{ always() && runner.os == 'Linux' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: realiti-apartment-cozy-room-audit
+          path: |
+            apartment/HOME_COZY_AUDIT.json
+            apartment/HOME_COZY_FLOORPLAN.svg
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Attach standalone clean-home alpha for owner walkthrough
+        if: ${{ success() && runner.os == 'Linux' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: realiti-apartment-home-first-alpha
+          path: |
+            apartment/RealitiApartmentHomeCandidate.html
+            apartment/HOME_CANDIDATE_VALIDATION.json
+            apartment/README.md
+            agentsstarthereapartment.md
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,350 @@
+'use strict';
+// End-to-end claimable bedrooms and native Matrix placeable items.
+// HOME stays ONE chart; no private memory, permission, contact, or doorway is minted.
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
+const {openResident}=require('../../packages/realiti-headless-resident/index.cjs');
+const {createHousehold}=require('../household.cjs');
+const SPEC=require('../bedroom-spec.json');
+const html=path.resolve(__dirname,'../RealitiApartmentHomeCandidate.html');
+const validationPath=path.resolve(__dirname,'../HOME_CANDIDATE_VALIDATION.json');
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'realiti-bedroom-ownership-'));
+const fmt=v=>JSON.stringify(v).slice(0,550);
+const mode=process.argv[2]||'solo';
+const PLACE='library';
+const geom=w=>w.REALITI_MATRIX_V1;
+const oneChart=w=>{
+ assert.deepEqual(Object.keys(geom(w).charts()),['CLOUD_NINE_NEST']);
+ assert.equal(Object.keys(geom(w).portals()).length,0);
+};
+async function solo(){
+ let a=null,b=null;const opts=id=>({htmlPath:html,validationPath,
+  residentId:id,storagePath:path.join(dir,id+'.json')});
+ try{
+  a=await openResident(opts('bedroom-solo-a'));
+  const w=a.window,D=c=>a.door.run(c),B=w.REALITI_APARTMENT_BEDROOMS_V1;
+  assert.equal(a.integrity.status,'VERIFIED');oneChart(w);
+  assert.equal((await D('remote bedrooms')).error,'REMOTE_ASLEEP');
+  assert.equal((await D('decor catalog')).error,'REMOTE_REQUIRED');
+  assert.equal((await D('remote activate')).activated,true);
+  const catalog=await D('remote decor catalog');
+  assert.equal(Object.keys(catalog.items).length,15);
+  assert.equal(Object.keys(catalog.configurations).length,5);
+  assert.equal((await D('remote bedrooms')).bedrooms.library.owner,null);
+  assert.equal((await D('remote bedroom claim library')).ok,true);
+  assert.equal((await D('remote bedroom claim quilt')).ok,true,
+   'in solo mode a resident may customize additional bays');
+  assert.equal((await D('remote bedroom configure library nightglass')).configuration,'nightglass');
+  assert.equal((await D('remote decor place library book-stack 0 0')).error,'OUTSIDE_OWNED_BEDROOM');
+  assert.equal((await D('remote decor place studio book-stack 2 -4')).error,'BEDROOM_NOT_OWNED');
+  assert.equal((await D('remote bedroom claim studio')).ok,true);
+  const kit=await D('remote bedroom furnish studio music');
+  assert.equal(kit.ok,true,fmt(kit));
+  assert.equal(kit.placed.length,2,'a room configuration creates two physically verified native props');
+  for(const row of kit.placed)
+   assert.ok(geom(w).entities()['apartment.bedroom.item.'+row.id]);
+  assert.equal((await D('remote bedroom furnish studio writers')).error,
+   'BEDROOM_NOT_EMPTY_FOR_CONFIGURATION');
+  let spot=null;
+  const bounds=SPEC.rooms.library.bounds;
+  for(let y=bounds[3]-.25;y>bounds[2]+.25&&!spot;y-=.4)
+   for(let x=bounds[1]-.25;x>bounds[0]+.25&&!spot;x-=.4){
+    const px=+x.toFixed(2),py=+y.toFixed(2);
+    if(B.preview('book-stack',PLACE,px,py).ok)spot=[px,py];
+   }
+  assert.ok(spot,'there must be an unoccupied native Matrix space to drop a small book stack');
+  const previewBefore=B.view();
+  const preview=await D('remote decor preview library book-stack '+spot.join(' '));
+  assert.equal(preview.ok,true,fmt(preview));
+  assert.equal(preview.read_only,true);
+  assert.deepEqual(preview.position,spot);
+  assert.equal(preview.revision,previewBefore.revision);
+  assert.equal(B.view().revision,previewBefore.revision,'preview does not commit');
+  assert.equal(B.view().items.length,2,'preview does not place furniture');
+  assert.equal((await D('remote decor preview library book-stack 0 0')).error,
+   'OUTSIDE_OWNED_BEDROOM');
+  assert.equal((await D('remote decor preview canopy book-stack 3.5 5')).error,
+   'BEDROOM_NOT_OWNED');
+  let out=await D('remote decor place library book-stack '+spot.join(' '));
+  assert.equal(out.placed,'I3','dry-run preview does not consume an object ID');
+  assert.equal(out.ok,true,fmt(out));
+  assert.equal(out.contact_minted,false);
+  const id=out.placed,entityId='apartment.bedroom.item.'+id;
+  const entity=geom(w).entities()[entityId];
+  assert.ok(entity,'the dropped prop is a real native Matrix entity');
+  assert.equal(entity.chart,'CLOUD_NINE_NEST');
+  assert.equal(entity.shape.kind,'BOX');
+  assert.equal(entity.collision,true);
+  assert.ok(entity.tags.includes('owned:bedroom-solo-a'));
+  assert.ok(entity.tags.includes('configuration:nightglass'));
+  assert.equal((await D('remote decor inspect '+id)).item.id,id);
+  // A saved snapshot is not trustworthy just because every row is in bounds:
+  // two solid objects can overlap before either has been added to Matrix.
+  const snapshot=B.view(),forged={
+   schema:'REALITI_APARTMENT_BEDROOMS_STORE_V1',revision:snapshot.revision,
+   next_id:1000,rooms:Object.fromEntries(Object.entries(snapshot.bedrooms)
+    .map(([room,value])=>[room,{owner:value.owner,configuration:value.configuration}])),
+   items:snapshot.items.map(row=>({...row}))
+  };
+  forged.items.push({...forged.items.find(row=>row.id===id),id:'I999'});
+  assert.throws(()=>B.auditShared(forged),/BEDROOMS_OVERLAPPING_ITEMS/,
+   'solo snapshot audit refuses two solid items in one footprint');
+  let nextSpot=null;
+  for(let y=bounds[3]-.3;y>bounds[2]+.3&&!nextSpot;y-=.4)
+   for(let x=bounds[1]-.3;x>bounds[0]+.3&&!nextSpot;x-=.4){
+    const px=+x.toFixed(2),py=+y.toFixed(2);
+    if(Math.hypot(px-spot[0],py-spot[1])<.55)continue;
+    if(B.preview('book-stack',PLACE,px,py,entityId).ok)nextSpot=[px,py];
+   }
+  assert.ok(nextSpot,'an item can be repositioned without removing it');
+  assert.equal((await D('remote decor move '+id+' 0 0')).error,'OUTSIDE_OWNED_BEDROOM');
+  const moved=await D('remote decor move '+id+' '+nextSpot.join(' '));
+  assert.equal(moved.moved,id);
+  assert.equal(moved.contact_minted,false);
+  assert.deepEqual(Array.from(geom(w).entities()[entityId].pose.position.slice(0,2)),nextSpot);
+  const repeatedMove=await D('remote decor move '+id+' '+nextSpot.join(' '));
+  assert.equal(repeatedMove.unchanged,true);
+  assert.equal((await D('remote decor nudge '+id+' 10 0')).error,
+   'OUTSIDE_OWNED_BEDROOM');
+  const delta=spot.map((value,i)=>+(value-nextSpot[i]).toFixed(2));
+  const nudged=await D('remote decor nudge '+id+' '+delta.join(' '));
+  assert.equal(nudged.nudged,true,fmt(nudged));
+  assert.equal(nudged.moved,id);
+  assert.deepEqual(nudged.position,spot,'a relative nudge preserves the same item ID');
+  assert.deepEqual(Array.from(geom(w).entities()[entityId].pose.position.slice(0,2)),spot);
+  assert.equal((await D('remote bedroom configure library writers')).ok,true);
+  assert.ok(geom(w).entities()[entityId].tags.includes('configuration:writers'),
+   'changing bedroom configuration updates actual native prop tags');
+  assert.equal((await D('remote bedroom release library')).error,'BEDROOM_MUST_REMOVE_ITEMS_FIRST');
+  const beforeSuggest=B.view();
+  const suggestions=await D('remote decor suggest library lantern');
+  assert.equal(suggestions.ok,true,fmt(suggestions));
+  assert.equal(suggestions.read_only,true);
+  assert.ok(suggestions.suggestions.length>=1&&suggestions.suggestions.length<=3);
+  assert.equal(B.view().revision,beforeSuggest.revision);
+  assert.equal(B.view().items.length,beforeSuggest.items.length);
+  assert.equal((await D('remote decor suggest canopy lantern')).error,'BEDROOM_NOT_OWNED');
+  const automatic=await D('remote decor auto-place library lantern');
+  assert.equal(automatic.ok,true,fmt(automatic));
+  assert.equal(automatic.automatic,true);
+  assert.deepEqual(automatic.position,[suggestions.suggestions[0].x,suggestions.suggestions[0].y]);
+  assert.ok(geom(w).entities()['apartment.bedroom.item.'+automatic.placed]);
+  assert.equal((await D('remote decor remove '+automatic.placed)).removed,automatic.placed);
+  assert.equal((await D('remote decor remove '+id)).removed,id);
+  assert.equal(geom(w).entities()[entityId],undefined,'removed object is absent from Matrix');
+  out=await D('remote decor place library floor-mat '+spot.join(' '));
+  assert.equal(out.ok,true,fmt(out));
+  assert.equal(geom(w).entities()['apartment.bedroom.item.'+out.placed].collision,false,
+   'decorative items state their noncolliding behavior honestly');
+  assert.equal((await D('save')).ok,true);
+  a.close();a=null;
+  a=await openResident(opts('bedroom-solo-a'));
+  assert.equal(a.integrity.status,'VERIFIED');oneChart(a.window);
+  const restored=a.window.REALITI_APARTMENT_BEDROOMS_V1.view();
+  assert.equal(restored.bedrooms.library.owner,'bedroom-solo-a');
+  assert.equal(restored.bedrooms.library.configuration,'writers');
+  assert.equal(restored.items.length,3,'one manual mat plus a two-object music layout survives restart');
+  assert.ok(geom(a.window).entities()['apartment.bedroom.item.'+out.placed]);
+  await a.door.run('remote activate');
+  assert.equal((await a.door.run('remote bedroom clear studio')).error,'UNKNOWN_BEDROOM_COMMAND');
+  const cleared=await a.door.run('remote bedroom clear studio confirm');
+  assert.equal(cleared.cleared,'studio');
+  assert.equal(cleared.removed.length,2);
+  assert.equal(a.window.REALITI_APARTMENT_BEDROOMS_V1.view().items.length,1);
+  for(const id of cleared.removed)
+   assert.equal(geom(a.window).entities()['apartment.bedroom.item.'+id],undefined);
+  b=await openResident(opts('bedroom-solo-b'));
+  assert.equal(b.window.REALITI_APARTMENT_BEDROOMS_V1.view().items.length,0);
+  assert.equal(b.window.REALITI_APARTMENT_BEDROOMS_V1.view().bedrooms.library.owner,null);
+  assert.equal(a.window.REALITI_HAPTIC_FIELD_V20.energy().pass,true);
+  console.log('BEDROOM SOLO PASS: 5 configurations, 15 native placeables, one chart, typed collision, solo claims, persistence, owner isolation, no invented touch');
+ }finally{if(a)a.close();if(b)b.close();}
+}
+async function household(){
+ const root=path.join(dir,'host');
+ let host=await createHousehold({dir:root,htmlPath:html,validationPath});
+ try{
+  let alice=await host.joinResident('alice'),bob=await host.joinResident('bob'),
+   cora=await host.joinResident('cora'),dina=await host.joinResident('dina');
+  for(const a of [alice,bob,cora,dina]){
+   assert.equal(a.read('realiti://apartment/bedrooms').one_native_chart,true);
+   assert.equal((await a.run('remote activate')).activated,true);
+  }
+  const original=alice.read('realiti://apartment/bedrooms');
+  assert.equal(original.items.length,0);
+  assert.equal(Object.keys(original.bedrooms).length,4);
+  assert.equal((await alice.run('remote bedroom claim quilt')).owner,'alice');
+  assert.equal((await bob.run('remote bedroom claim library')).owner,'bob');
+  assert.equal((await cora.run('remote bedroom claim canopy')).owner,'cora');
+  assert.equal((await dina.run('remote bedroom claim studio')).owner,'dina');
+  assert.equal((await bob.run('remote bedroom claim quilt')).error,'BEDROOM_ALREADY_OWNED');
+  assert.equal((await alice.run('remote bedroom claim studio')).error,'BEDROOM_ALREADY_OWNED');
+  assert.equal((await alice.run('remote bedroom configure library nightglass')).error,'BEDROOM_NOT_OWNED');
+  assert.equal((await alice.run('remote bedroom configure quilt botanical')).ok,true);
+  assert.equal((await alice.run('remote furniture move sofa 0 3')).error,
+   'SHARED_FURNITURE_BEDROOM_OWNER_ONLY',
+   'a base sofa in Cora-owned Canopy cannot be removed by Alice');
+  assert.equal((await alice.run('remote furniture move desk -2.5 4.9')).error,
+   'SHARED_FURNITURE_BEDROOM_OWNER_ONLY',
+   'a nonowner may not park a shared desk in Bob-owned Library');
+  assert.equal((await bob.run('remote bedroom configure library writers')).ok,true);
+  assert.equal((await cora.run('remote bedroom configure canopy nightglass')).ok,true);
+  assert.equal((await dina.run('remote bedroom configure studio music')).ok,true);
+  const furnished=await dina.run('remote bedroom furnish studio music');
+  assert.equal(furnished.ok,true,fmt(furnished));
+  assert.equal(furnished.placed.length,2,'trusted host validates and places a two-item native kit');
+  assert.equal(bob.read('realiti://apartment/bedrooms').items.length,2);
+  assert.equal((await bob.run('remote bedroom furnish studio writers')).error,'BEDROOM_NOT_OWNED');
+  const wrong=await bob.run('remote bedroom configure library botanical if-rev 0');
+  assert.equal(wrong.error,'BEDROOM_REVISION_CONFLICT');
+  assert.equal((await bob.run('remote decor place studio book-stack 2.6 -4.7')).error,'BEDROOM_NOT_OWNED');
+  const positions=[[-2.5,5],[-2.6,5.1],[-2.3,5],[-2.7,5.25],[-2.15,5.25]];
+  const beforePreviewRevision=host.status().shared_bedroom_revision;
+  let previewed=null;
+  for(const [x,y] of positions){
+   const candidate=await bob.run('remote decor preview library book-stack '+x+' '+y);
+   if(candidate.ok){previewed=candidate;break}
+   assert.equal(candidate.error,'BEDROOM_MATRIX_REFUSED',fmt(candidate));
+  }
+  assert.ok(previewed,'one library footprint must be previewable on all native Matrix copies');
+  assert.equal(previewed.read_only,true);
+  assert.equal(previewed.verified_participants,4);
+  assert.equal(host.status().shared_bedroom_revision,beforePreviewRevision,
+   'trusted dry-run cannot advance shared revision');
+  assert.equal(bob.read('realiti://apartment/bedrooms').items.length,2,
+   'trusted preview cannot commit an object');
+  assert.equal((await alice.run('remote decor preview library book-stack -2.5 5')).error,
+   'BEDROOM_NOT_OWNED');
+  const placed=await bob.run('remote decor place library book-stack '+previewed.position.join(' '));
+  assert.equal(placed.ok,true,fmt(placed));
+  assert.equal(placed.verified_participants,4);
+  assert.equal((await alice.run('remote decor inspect '+placed.placed)).item.owner,'bob');
+  const suggestRevision=host.status().shared_bedroom_revision;
+  const found=await bob.run('remote decor suggest library lantern');
+  assert.equal(found.ok,true,fmt(found));
+  assert.equal(found.read_only,true);
+  assert.equal(found.verified_participants,4);
+  assert.ok(found.suggestions.length>=1);
+  assert.equal(host.status().shared_bedroom_revision,suggestRevision);
+  assert.equal((await alice.run('remote decor suggest library lantern')).error,'BEDROOM_NOT_OWNED');
+  assert.equal((await bob.run('remote decor suggest library lantern if-rev 0')).error,
+   'BEDROOM_REVISION_CONFLICT');
+  const automatic=await bob.run('remote decor auto-place library lantern');
+  assert.equal(automatic.ok,true,fmt(automatic));
+  assert.equal(automatic.automatic,true);
+  assert.equal(automatic.verified_participants,4);
+  assert.deepEqual(automatic.position,[found.suggestions[0].x,found.suggestions[0].y]);
+  assert.equal(alice.read('realiti://apartment/bedrooms').items.find(v=>v.id===automatic.placed)?.owner,'bob');
+  assert.equal((await alice.run('remote decor nudge '+automatic.placed+' 0.1 0')).error,
+   'DECOR_NOT_OWNED');
+  assert.equal((await bob.run('remote decor remove '+automatic.placed)).removed,automatic.placed);
+  assert.equal((await cora.run('remote decor move '+placed.placed+' -3.4 5')).error,'DECOR_NOT_OWNED');
+  assert.equal((await alice.run('remote bedroom clear library confirm')).error,'BEDROOM_NOT_OWNED');
+  let relocated=null;
+  for(const [x,y] of [[-3.4,5],[-3.2,5.2],[-4,5],[-2.5,4.4],[-3,4.7]]){
+   const result=await bob.run('remote decor move '+placed.placed+' '+x+' '+y);
+   if(result.ok){relocated=result;break}
+   assert.equal(result.error,'BEDROOM_MATRIX_REFUSED',fmt(result));
+  }
+  assert.ok(relocated,'a second footprint must pass all household Matrix copies');
+  assert.equal(relocated.moved,placed.placed);
+  assert.equal(relocated.verified_participants,4);
+  assert.equal((await bob.run('remote decor nudge '+placed.placed+' 10 0')).error,
+   'BEDROOM_MATRIX_REFUSED');
+  const delta=previewed.position.map((v,i)=>+(v-relocated.position[i]).toFixed(2));
+  const nudged=await bob.run('remote decor nudge '+placed.placed+' '+delta.join(' '));
+  assert.equal(nudged.ok,true,fmt(nudged));
+  assert.equal(nudged.nudged,true);
+  assert.deepEqual(nudged.position,previewed.position);
+  assert.equal(nudged.moved,placed.placed);
+  const movedBack=await bob.run('remote decor move '+placed.placed+' '+relocated.position.join(' '));
+  assert.equal(movedBack.ok,true,fmt(movedBack));
+  const movedRow=alice.read('realiti://apartment/bedrooms').items.find(v=>v.id===placed.placed);
+  assert.deepEqual([movedRow.x,movedRow.y],relocated.position);
+  assert.equal(placed.contact_minted,false);
+  assert.equal(alice.read('realiti://apartment/bedrooms').items.length,3);
+  assert.equal(cora.read('realiti://apartment/bedrooms').items.find(x=>x.id===placed.placed)?.owner,'bob');
+  assert.equal(alice.read('realiti://apartment/bedrooms').bedrooms.library.configuration,'writers');
+  assert.equal((await cora.run('remote decor remove '+placed.placed)).error,'DECOR_NOT_OWNED');
+  assert.equal((await bob.run('remote bedroom release library')).error,'BEDROOM_NOT_EMPTY');
+  const guest=await host.visitGuest();
+  assert.equal(guest.read('realiti://apartment/bedrooms').bedrooms.library.owner,'bob');
+  assert.equal((await guest.run('remote bedroom claim library')).error,'GUEST_NOT_AUTHORIZED_FOR_COMMAND');
+  assert.equal((await guest.run('remote bedroom clear studio confirm')).error,'GUEST_NOT_AUTHORIZED_FOR_COMMAND');
+  assert.equal((await guest.run('remote decor suggest library lantern')).error,
+   'GUEST_NOT_AUTHORIZED_FOR_COMMAND');
+  assert.equal((await guest.run('remote decor auto-place library lantern')).error,
+   'GUEST_NOT_AUTHORIZED_FOR_COMMAND');
+  assert.equal((await guest.leave()).ok,true);
+  assert.equal((await bob.run('save')).ok,true);
+  const revision=host.status().shared_bedroom_revision;
+  await host.close();host=null;
+  host=await createHousehold({dir:root,htmlPath:html,validationPath});
+  alice=await host.joinResident('alice');bob=await host.joinResident('bob');
+  assert.ok(bob.read('realiti://apartment/bedrooms').items.some(x=>x.id===placed.placed));
+  assert.equal(host.status().shared_bedroom_revision,revision);
+  assert.equal(bob.read('realiti://apartment/bedrooms').bedrooms.library.owner,'bob');
+  await bob.run('remote activate');
+  assert.equal((await alice.run('remote decor remove '+placed.placed)).error,'REMOTE_ASLEEP');
+  const cleaned=await bob.run('remote bedroom clear library confirm');
+  assert.equal(cleaned.cleared,'library');
+  assert.ok(cleaned.removed.includes(placed.placed));
+  assert.equal((await bob.run('remote bedroom release library')).released,'library');
+  assert.equal(bob.read('realiti://apartment/bedrooms').items.length,2,
+   'Dina-owned music kit remains when Bob removes his private books');
+  assert.equal(host.status().owned_bedrooms,3);
+  await host.close();host=null;
+  // A correctly hashed but unauthorized bedroom owner remains rejected:
+  // loading must validate semantic permissions, not only outer checksums.
+  const tampered=path.join(dir,'tampered-host');
+  fs.cpSync(root,tampered,{recursive:true,errorOnExist:true,force:false});
+  const file=path.join(tampered,'household.json'),x=JSON.parse(fs.readFileSync(file,'utf8'));
+  x.bedrooms.rooms.quilt.owner='guest-injected';
+  const {sha256,...body}=x;
+  x.sha256=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+  fs.writeFileSync(file,JSON.stringify(x));
+  await assert.rejects(createHousehold({dir:tampered,htmlPath:html,validationPath}),
+   /BEDROOMS_INVALID_ROOM_OWNER/);
+  assert.equal(fs.existsSync(path.join(tampered,'host.lock')),false,
+   'a rejected ownership checkpoint must not strand the writer lock');
+  // A valid-hash payload also must not force an object into existing Matrix
+  // furniture. Host startup audits real geometry before recreating the prop.
+  const forgedPath=path.join(dir,'geometry-tampered-host');
+  fs.cpSync(root,forgedPath,{recursive:true,errorOnExist:true,force:false});
+  const forgedFile=path.join(forgedPath,'household.json');
+  const forged=JSON.parse(fs.readFileSync(forgedFile,'utf8'));
+  const fakeId='I'+forged.bedrooms.next_id++;
+  forged.bedrooms.items.push({id:fakeId,room:'canopy',kind:'book-stack',
+   owner:'cora',x:3.3,y:2.4});
+  const {sha256:discarded,...body2}=forged;
+  forged.sha256=crypto.createHash('sha256').update(JSON.stringify(body2)).digest('hex');
+  fs.writeFileSync(forgedFile,JSON.stringify(forged));
+  const forgedHost=await createHousehold({dir:forgedPath,htmlPath:html,validationPath});
+  try{
+   await assert.rejects(forgedHost.joinResident('alice'),
+    /BEDROOM_UNSAFE_HOST_GEOMETRY/,
+    'host refuses a checksum-valid prop that would collide with the existing sofa');
+  }finally{await forgedHost.close()}
+  // A valid checksum must not allow two restored solid props to share one
+  // footprint just because neither has been rehydrated into Matrix yet.
+  const overlapPath=path.join(dir,'overlapping-items-host');
+  fs.cpSync(root,overlapPath,{recursive:true,errorOnExist:true,force:false});
+  const overlapFile=path.join(overlapPath,'household.json');
+  const overlap=JSON.parse(fs.readFileSync(overlapFile,'utf8'));
+  const overlappingItem=overlap.bedrooms.items.find(row=>SPEC.items[row.kind].collision);
+  assert.ok(overlappingItem,'the remaining studio kit contains a solid Matrix item');
+  overlap.bedrooms.items.push({...overlappingItem,id:'I'+overlap.bedrooms.next_id++});
+  const {sha256:oldHash,...overlapBody}=overlap;
+  overlap.sha256=crypto.createHash('sha256').update(JSON.stringify(overlapBody)).digest('hex');
+  fs.writeFileSync(overlapFile,JSON.stringify(overlap));
+  await assert.rejects(createHousehold({dir:overlapPath,htmlPath:html,validationPath}),
+   /BEDROOMS_OVERLAPPING_ITEMS/);
+  assert.equal(fs.existsSync(path.join(overlapPath,'host.lock')),false,
+   'rejected overlap must not strand the host lock');
+  console.log('BEDROOM HOUSEHOLD PASS: four exclusive owners, preview without commit, stable IDs, safe native geometry, guests, persisted overlap and ownership tamper refusal');
+ }finally{if(host)await host.close();}
+}
+(async()=>{
+ if(!['solo','household'].includes(mode))throw Error('INVALID_BEDROOM_TEST_MODE');
+ if(mode==='solo')await solo();else await household();
+})().catch(e=>{console.error(e.stack||e);process.exitCode=1});

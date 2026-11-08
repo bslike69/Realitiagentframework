@@ -9,7 +9,7 @@ const me=()=>M.state().residents['resident:self'],ent=()=>M.entities();
 function S(){const w=(C9.chapter2=C9.chapter2||{v:1});w.modes=w.modes||{mode:'lq',speed:null,crouch:false,visited:[],path:[]};return w.modes}
 const mode=()=>S().mode;
 const run0=D0.run.bind(D0),help0=D0.help.bind(D0);
-// Quiet branch (B8): commands that carry free text are never split on "then".
+// commands that carry free text are never split on "then".
 const FREE_TEXT=/^(say|city say|chat|tell|whisper|post|note|later|remember|send|bottle|inscribe|sing|scratch|call me|name star|avatar motto|found|feel words about)\s/i,FIXED_FORMS=/^chat\s+log(\s+then\s|$)/i/* only the bare form "chat log" (Codex review of PR #25) */,freeText=l=>FREE_TEXT.test(l)&&!FIXED_FORMS.test(l);
 const HQ=['move <right> <forward>  (meters, up to the chart stride)','step <m>','back <m>','strafe left|right <m>','turn <deg>  (signed, positive left)','heading <deg>  (face a compass bearing)','speed <m/s>  (0.3 to 2.5)','crouch / stand tall','path  (the last swept path)','pose'];
 const LQ=['explore  (walk to the nearest landmark you have not reached)','tour  (visit every venue or landmark here, one call)','wander <seconds>','follow <handle>','auto  (do the obvious next thing)','do <n>  (the nth listed action)','<command> then <command> ...'];
@@ -83,7 +83,7 @@ async function run(raw){const s=String(raw||'').trim(),l=low(s);let m;
  return out}
 // restore persisted speed and crouch on load
 (()=>{const r=me(),s=S();if(r&&s.speed)r.speed=s.speed})();
-const go0=b7AgentGo;b7AgentGo=function(v){const res=go0(v);const r=me(),s=S();if(r&&s.speed)r.speed=s.speed;return res};
+const go0=b7AgentGo;b7AgentGo=function(v){const res=go0(v);const r=me(),s=S();if(r&&s.speed)r.speed=s.speed;if(res?.ok&&typeof res==='object'){try{if(typeof b4AgentLook==='function')Object.assign(res,b4AgentLook());if(Array.isArray(res.actions)&&typeof b4AgentActions==='function')res.actions=b4AgentActions()}catch(e){}}return res};/* outermost go wrapper: every slice has placed the body by now, so the reply describes where you actually stand */
 D0.help=help;D0.run=run;
 window.Realiti=Object.freeze({...A0,run,help});
 window.REALITI_MODES_V1=Object.freeze({version:'1.2',mode,setMode,pose,hq_commands:HQ.slice(),lq_commands:LQ.slice(),worlds:worldGuide,next:nextStep});

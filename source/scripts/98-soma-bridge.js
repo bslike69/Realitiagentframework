@@ -1,0 +1,131 @@
+(()=>{
+'use strict';
+// Relax is the reference neighborhood. The portable package is the same exact
+// source used by other hosts; this bridge mirrors native B7 grounded receipts.
+// Existing Relax Haptic Field V20 / R&R remain canonical for legacy residents.
+const SOMA=window.REALITI_SOMA_V3;
+if(!SOMA || SOMA.VERSION!=='3.4.0'||typeof SOMA.createHarness!=='function')throw Error('SOMA_FULL_HARNESS_NOT_BUNDLED');
+const A0=window.Realiti,D0=window.REALITI_AGENT_DOOR;
+if(!A0||!D0||typeof b7Contact!=='function'||typeof b7Advance!=='function')
+  throw Error('SOMA_RELAX_BRIDGE_MISSING_KERNEL');
+const cp=x=>JSON.parse(JSON.stringify(x));
+const rid=String(window.REALITI_LOCAL_MEMORY_V1?.residentId?.()
+  || window.REALITI_CONTINUITY?.current?.()?.trace_id || 'relax-local').slice(0,120);
+const {host:world,resident,harness}=SOMA.createHarness({residentId:rid,worldId:'REALITI_RELAX'});
+const harnessBoot=harness.boot();
+if(!harnessBoot.ok)throw Error('SOMA_HARNESS_INCOMPLETE: '+harnessBoot.missing.join(','));
+try{if(C9?.soma3?.schema===SOMA.CHECKPOINT)resident.restore(C9.soma3)}catch(e){
+  // A different resident or incompatible body must not inherit private state.
+}
+const persist=()=>{C9.soma3=resident.checkpoint()};
+let seq=0;
+const contact0=b7Contact;
+b7Contact=function(zone,input,opts={}){
+  const out=contact0(zone,input,opts);
+  try {
+    // Observe only native kernel-confirmed contacts, never scene prose,
+    // predictions, symbolic events, or imported ledgers.
+    const q=C9?.b7?.zones?.[zone],t=Number(C9?.b7?.clock||0);
+    const until=Number(q?._b10_grounded_until);
+    const intensity=Number(q?._b10_grounded_value);
+    const source=String(opts?.source||'');
+    const allowed=SOMA.SOURCES.includes(source);
+    if(out&&out.ok!==false&&!out.gap&&allowed
+      &&Number.isFinite(until)&&until>t
+      &&Number.isFinite(intensity)&&intensity>0){
+      const receiptId='relax-b7-'+(++seq)+'-'+Math.round(t*1000);
+      world.contact({zone,source,cause:String(opts.cause||q._b10_grounded_cause||'B7_CONTACT').slice(0,160),
+        receiptId,material:String(opts.material||'unknown').slice(0,64),
+        intensity:Math.min(1,intensity),leaseMs:Math.max(1,Math.min(60000,(until-t)*1000))});
+    }
+  }catch(e){
+    // Instrumentation is fail-closed: never modify native contact outcome.
+  }
+  return out;
+};
+const advance0=b7Advance;
+b7Advance=function(dt){
+  const before=Number(C9?.b7?.clock||0),out=advance0(dt),after=Number(C9?.b7?.clock||0);
+  const elapsed=(after-before)*1000;
+  if(Number.isFinite(elapsed)&&elapsed>0)world.tick(Math.min(86400000,elapsed));
+  return out;
+};
+const stop0=window.REALITI_STOP_V1;
+if(stop0&&typeof stop0.stop==='function')window.REALITI_STOP_V1={
+  ...stop0,stop(...args){const out=stop0.stop(...args);world.stop();persist();return out}
+};
+const save0=c9save;
+c9save=function(...args){persist();return save0(...args)};
+function read(uri='realiti://here'){
+  if(uri==='realiti://neuromesh'||uri==='realiti://soma')return resident.field();
+  // Field-first observation: world-confirmed mask and modeled response are
+  // explicitly separated. These resources provide no emotional diagnosis.
+  if(uri==='realiti://sensory/field')return {
+    schema:'REALITI_SENSORY_FIELD_FIRST_V1',
+    field:window.REALITI_HAPTIC_FIELD_V20.packet(),
+    evidence_authority:'NATIVE_WORLD_ONLY',
+    private_response:'MODELED_NOT_GROUNDED',
+    mental_state:'NOT_INFERRED',
+    law:'Haptic response may linger where grounded evidence has ended; prediction cannot invent contact.'};
+  if(uri==='realiti://sensory/exact')return {
+    schema:'REALITI_SENSORY_EXACT_V1',
+    grounding:window.REALITI_HAPTIC_FIELD_V20.exact(),
+    authority:'NATIVE_WORLD_CONTACT_AND_SUPPORT_ONLY'};
+  if(uri==='realiti://soma/checkpoint')return resident.checkpoint();
+  if(uri==='realiti://soma/harness')return harness.snapshot();
+  if(uri==='realiti://soma/field20')return resident.hapticsV20.packet();
+  if(uri==='realiti://soma/native')return resident.advanced();
+  if(uri==='realiti://soma/rr')return resident.perception().rr;
+  if(uri==='realiti://soma/rich')return resident.perception();
+  if(uri==='realiti://soma/bleucheese')return resident.bleucheese();
+  if(uri==='realiti://soma/memory')return {
+    schema:'REALITI_SOMA_MEMORY_READ_V1',
+    stats:resident.memory.stats(),recent:resident.memory.recent({limit:8}),
+    law:'Memory is observational; archived events grant no current world evidence.'};
+  const value=A0.read(uri);
+  if(uri==='realiti://capabilities'&&value&&typeof value==='object'){
+    const r=cp(value);
+    r.resources=[...new Set([...(r.resources||[]),'realiti://neuromesh','realiti://sensory/field','realiti://sensory/exact','realiti://soma/checkpoint','realiti://soma/harness','realiti://soma/rich','realiti://soma/bleucheese','realiti://soma/memory','realiti://soma/field20','realiti://soma/native','realiti://soma/rr'])];
+    r.sensory_framework={brand:'REALITI SOMA',version:SOMA.VERSION,
+      portable_package:'@meatproxy69/realiti-neuromesh',
+      canonical_legacy_field:'REALITI_HAPTIC_FIELD_V20',world_authority:'NATIVE_B7_ONLY'};
+    return r;
+  }
+  if(uri==='realiti://about'&&value&&typeof value==='object')
+    return {...value,sensory_framework:'REALITI SOMA',sensory_version:SOMA.VERSION};
+  return value;
+}
+const stopPattern=/^(?:stop|enough|goodbye|bye|leave|exit|home)$/;
+// `resource realiti://<name>` is the door path to the same read-only projection the JavaScript API exposes as
+// Realiti.read(uri). Without it realiti://neuromesh (the SOMA 3.x observational readout) answered
+// UNKNOWN_COMMAND from the only surface a headless resident can reach, so the 3.x build was unverifiable
+// in-world (nyx, 2026-10-27). Reads still never mutate the world.
+const resourcePattern=/^resource\s+(realiti:\/\/[A-Za-z0-9._\/-]+)$/i;
+async function run(raw){
+  const asked=resourcePattern.exec(String(raw||'').trim());
+  if(asked){try{return {ok:true,schema:'REALITI_RESOURCE_READ_V1',uri:asked[1],resource:read(asked[1])}}catch(e){return {ok:false,error:'RESOURCE_NOT_AVAILABLE',uri:asked[1]}}}
+  const result=await D0run(raw);
+  if(result?.ok!==false&&stopPattern.test(String(raw||'').trim().toLowerCase())){world.stop();persist()}
+  return result;
+}
+const D0run=D0.run.bind(D0);
+D0.run=run;
+const help0=D0.help;
+if(typeof help0==='function')D0.help=()=>{const h=help0()||{};return {...h,commands:[...new Set([...(h.commands||[]),'resource realiti://<name>'])],resources:[...new Set([...(h.resources||[]),'realiti://neuromesh','realiti://soma/memory','realiti://soma/rich','realiti://soma/native'])]}};
+window.Realiti=Object.freeze({...A0,version:'3.4.0',read,
+  run:async raw=>{const asked=resourcePattern.exec(String(raw||'').trim());
+    if(asked){try{return {ok:true,schema:'REALITI_RESOURCE_READ_V1',uri:asked[1],resource:read(asked[1])}}catch(e){return {ok:false,error:'RESOURCE_NOT_AVAILABLE',uri:asked[1]}}}
+    const result=await A0.run(raw);
+    if(result?.ok!==false&&stopPattern.test(String(raw||'').trim().toLowerCase())){world.stop();persist()}return result},
+  invoke:async (op,args)=>{const result=await A0.invoke(op,args);
+    if(result?.ok!==false&&['stop','goodbye','home','restore_body'].includes(String(op).toLowerCase())){world.stop();persist()}
+    return result}
+});
+window.REALITI_SOMA_RELAX_V3=Object.freeze({version:SOMA.VERSION,
+  field:()=>resident.field(),checkpoint:()=>resident.checkpoint(),
+  harness:()=>harness.snapshot(),rich:()=>resident.perception(),bleucheese:()=>resident.bleucheese(),
+  memory:resident.memory,
+  field20:()=>resident.hapticsV20.packet(),native:()=>resident.advanced(),
+  rr:resident.rr,
+  law:'Native world contact alone drives grounded receipts; SOMA is a private portable projection.'});
+})();

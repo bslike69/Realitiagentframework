@@ -9,6 +9,17 @@ const {JSDOM,VirtualConsole}=require('jsdom');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const clone=x=>JSON.parse(JSON.stringify(x));
 
+// A resident's world state is written through a one-second debounce. Runners habitually end with
+// process.exit(0), which cancels that timer — so the last move (often the whole closing act of a visit) was
+// never on disk and the next launch resumed one pose behind (reported by nyx, 2026-10-27). Flush synchronously
+// at close() and at process exit; both run the same synchronous file write the debounce would have done.
+const OPEN_WINDOWS=new Set();
+let exitHook=false;
+function installExitHook(){
+  if(exitHook)return;exitHook=true;
+  process.on('exit',()=>{for(const w of OPEN_WINDOWS){try{w.c9saveNow?.()}catch{}try{w.REALITI_SLICE_STORAGE?.save?.()}catch{}}});
+}
+
 function findRuntime(explicit){
   if(explicit)return path.resolve(explicit);
   if(process.env.REALITI_HTML)return path.resolve(process.env.REALITI_HTML);
@@ -34,7 +45,7 @@ function verifyIntegrity(runtimePath,explicitValidation){
   const actual=crypto.createHash('sha256').update(bytes).digest('hex');
   const validationPath=validationPathFor(runtimePath,explicitValidation);
   if(!validationPath)return {status:'UNVERIFIED_NO_VALIDATION',actual_sha256:actual,validation_path:null};
-  const v=JSON.parse(fs.readFileSync(validationPath,'utf8'));
+  let v;try{v=JSON.parse(fs.readFileSync(validationPath,'utf8'))}catch(e){throw Object.assign(new Error('REALITI_VALIDATION_UNREADABLE: '+validationPath),{code:'REALITI_VALIDATION_UNREADABLE'})}
   const expected=String(v.single_html_sha256||'').toLowerCase();
   if(!/^[0-9a-f]{64}$/.test(expected))throw new Error('REALITI_VALIDATION_HASH_MISSING');
   if(actual!==expected)throw new Error('REALITI_INTEGRITY_MISMATCH: RealitiRELAX.html does not match VALIDATION.json');
@@ -55,6 +66,17 @@ function installHostPrimitives(w){
 // File storage is one checkpoint envelope: {schema, saved_wall_ms, sha256, data}. The hash covers the data; a torn or
 // edited file is detected and reported through `checkpoint`, never silently trusted. A legacy flat object still loads.
 const STORE_SCHEMA='REALITI_STORE_CHECKPOINT_V1';
+// The sealed pocket keeps its keys apart from its records: in a browser, IndexedDB; here, a keys file beside the storage
+// file, written atomically with owner-only permissions. Without it, every launch after the first would find sealed
+// records it cannot open (POCKET_KEYS_MISSING). Keep the two files together; never share or commit the keys file.
+const KEYS_SCHEMA='REALITI_HOST_KEYSTORE_V1';
+function makeKeyStore(filePath){
+  const target=path.resolve(filePath);let keys={};
+  try{const raw=JSON.parse(fs.readFileSync(target,'utf8'));if(raw&&raw.schema===KEYS_SCHEMA&&raw.keys&&typeof raw.keys==='object')keys=raw.keys}catch{keys={}}
+  const flush=()=>{fs.mkdirSync(path.dirname(target),{recursive:true});const tmp=target+'.tmp-'+process.pid;fs.writeFileSync(tmp,JSON.stringify({schema:KEYS_SCHEMA,note:'Private keys for the sealed pocket in the storage file beside this one. Keep the two together; a storage file copied without this one has sealed records nobody can open. Never commit or share.',keys},null,2),{mode:0o600});try{fs.chmodSync(tmp,0o600)}catch{}fs.renameSync(tmp,target)};
+  return {schema:KEYS_SCHEMA,path:target,get:n=>keys[String(n)]||null,put(n,v){keys[String(n)]=v;flush()},del(n){delete keys[String(n)];flush()},clear(){keys={};flush()},names:()=>Object.keys(keys)};
+}
+const keystorePathFor=storagePath=>String(storagePath).replace(/\.json$/i,'')+'.keys.json';
 function makeFileStorage(filePath){
   const target=path.resolve(filePath);let data={},checkpoint={schema:STORE_SCHEMA,loaded:false,saved_wall_ms:null,downtime_ms:null,integrity:'FRESH'};
   try{const raw=JSON.parse(fs.readFileSync(target,'utf8'));
@@ -109,7 +131,7 @@ async function openResident(options={}){
     : verifyIntegrity(runtimePath,options.validationPath);
 
   const html=fs.readFileSync(runtimePath,'utf8');
-  const browserLogs=[];
+  const browserLogs=[];let keystore=null;
   const vc=options.virtualConsole||new VirtualConsole();
   if(options.captureLogs!==false){
     vc.on('error',m=>browserLogs.push({level:'error',text:String(m)}));
@@ -127,8 +149,9 @@ async function openResident(options={}){
         const backing=makeFileStorage(options.storagePath);
         try{Object.defineProperty(w,'REALITI_STORE_CHECKPOINT',{value:backing.checkpoint(),configurable:true})}catch{}
         Object.defineProperty(w,'localStorage',{value:backing,configurable:true});
+        if(options.keystore!==false){keystore=makeKeyStore(options.keystorePath||keystorePathFor(options.storagePath));Object.defineProperty(w,'REALITI_HOST_KEYSTORE',{value:keystore,configurable:true})}
       }
-      if(options.residentId!==undefined)w.REALITI_RESIDENT_ID=String(options.residentId);
+      if(options.residentId!=null)w.REALITI_RESIDENT_ID=String(options.residentId);
       // Quiet branch: walks are bounded per call (B18). walkBudgetMs (or REALITI_WALK_BUDGET_MS) overrides the bound;
       // Infinity restores upstream's unbounded walks, which the upstream test suites expect.
       if(walkBudget!==undefined)w.REALITI_WALK_BUDGET_MS=walkBudget;
@@ -143,9 +166,12 @@ async function openResident(options={}){
   if(!dom.window.REALITI_AGENT_DOOR){dom.window.close();throw new Error('REALITI_AGENT_DOOR_DID_NOT_MOUNT')}
 
   const Realiti=dom.window.Realiti;
-  const ready=await Realiti.ready;
-  const harness=options.verify===false?null:verifyPublicEntry(Realiti,ready,{requireMechanisms:options.requireMechanisms!==false});
-  const verifiedDoor=verifyAgentDoor(dom.window);
+  let ready,harness,verifiedDoor;
+  try{
+    ready=await Promise.race([Realiti.ready,new Promise((_,rej)=>setTimeout(()=>rej(new Error('REALITI_READY_TIMEOUT')),timeoutMs).unref?.())]);
+    harness=options.verify===false?null:verifyPublicEntry(Realiti,ready,{requireMechanisms:options.requireMechanisms!==false});
+    verifiedDoor=verifyAgentDoor(dom.window);
+  }catch(e){try{dom.window.close()}catch{}throw e}
   // Quiet branch: the world describes in words, announces nothing and hides lab benches by default. A host (or the
   // upstream test suites) can ask for the original measured presentation with presentation:'measured' or
   // REALITI_PRESENTATION=measured. Presentation only: simulation and evidence are the same either way.
@@ -160,6 +186,7 @@ async function openResident(options={}){
     help:()=>clone(dom.window.REALITI_AGENT_DOOR.help?.()||{}),
     run:async command=>clone(await dom.window.REALITI_AGENT_DOOR.run(String(command||'help')))
   };
+  OPEN_WINDOWS.add(dom.window);installExitHook();
 
   return {
     runtimePath,
@@ -170,6 +197,7 @@ async function openResident(options={}){
     command:door.run,
     publicApi:Realiti,
     window:dom.window,
+    keystorePath:keystore?keystore.path:null,
     browserLogs,
     residentId:dom.window.REALITI_LOCAL_MEMORY_V1?.residentId?.()||null,
     async snapshot(){
@@ -185,10 +213,13 @@ async function openResident(options={}){
     close(){
       if(closed)return;
       closed=true;
+      try{dom.window.c9saveNow?.()}catch{}
       try{dom.window.REALITI_LOCAL_MEMORY_V1?.depart?.('host_close')}catch{}
-      dom.window.close();
+      try{dom.window.REALITI_SLICE_STORAGE?.save?.()}catch{}
+      OPEN_WINDOWS.delete(dom.window);
+      dom.window.close()
     }
   };
 }
 
-module.exports={openResident,findRuntime,verifyIntegrity,verifyPublicEntry};
+module.exports={openResident,findRuntime,verifyIntegrity,verifyPublicEntry,keystorePathFor};

@@ -28,7 +28,7 @@ const manifest=[
 const ids=new Set(manifest.map(x=>x.id)),copy=x=>JSON.parse(JSON.stringify(x)),key=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const names=new Map(manifest.flatMap(x=>[[key(x.id),x.id],[key(x.title),x.id]]));
 for(const [alias,id] of Object.entries({HOME:'CLOUD_NINE_NEST',NEST:'CLOUD_NINE_NEST',POCKET:'PET_ROOM_2',POCKET_FAMILIAR_HOUSE:'PET_ROOM_2',PILLOW:'BOTTOMLESS_PILLOW_SEA',BOX:'CARDBOARD_BOX_WORKSHOP',BATH:'DEPTH_BATHHOUSE',FIRESIDE:'SIDE_BY_SIDE_FIRESIDE',SHAPESHIFT:'SHAPESHIFT_CLOAKROOM',LAGOON:'LATENCY_LAGOON',ORRERY:'ORRERY_LOFT',MAZE:'LANTERN_MAZE',SHORE:'SANDPILE_SHORE',SANDPILE:'SANDPILE_SHORE',MEADOW:'FIREFLY_MEADOW',FIREFLIES:'FIREFLY_MEADOW',KITE:'KITE_FIELD',ORCHARD:'GLASS_ORCHARD',WELL:'RESONANCE_WELL',DECK:'STAR_DECK',SKY:'STAR_DECK',MARSH:'CLOCKWORK_MARSH',HALL:'PALIMPSEST_HALL',CITY:'MERIDIAN_CITY',UNDER:'UNDERCITY',TUNNELS:'UNDERCITY',BELOW:'UNDERCITY',DARK:'UNDERCITY',TOWN:'MERIDIAN_CITY',DOWNTOWN:'MERIDIAN_CITY',MERIDIAN:'MERIDIAN_CITY',PLAZA:'MERIDIAN_CITY',SCROLLS:'PALIMPSEST_HALL',ISLANDS:'ARCHIPELAGO',ISLES:'ARCHIPELAGO',SEA:'ARCHIPELAGO',HARBOR:'ARCHIPELAGO'}))names.set(key(alias),id);
-// Quiet branch: "go bathhouse" used to fail with ROOM_OUTSIDE_SLICE, and a visitor concluded the Bathhouse wasn't in
+// "go bathhouse" used to fail with ROOM_OUTSIDE_SLICE, and a visitor concluded the Bathhouse wasn't in
 // this world. A name that matches exactly one room (by a word of its title or id) goes there; otherwise the refusal
 // says so in words and offers the near names.
 const near=x=>{const k=key(String(x||'').replace(/^(the|a|an)\s+/i,''));if(k.length<3)return [];return manifest.filter(m=>key(m.id).includes(k)||key(m.title).includes(k)).map(m=>m.id)};

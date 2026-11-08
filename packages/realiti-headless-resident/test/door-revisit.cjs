@@ -21,7 +21,8 @@ const stop=p=>new Promise(r=>{p.once('exit',r);p.kill()});
   await cmd('goodbye');await stop(door);door=startDoor();await up(B+'/door');
   // Restarted door: the saved resident was ended; the first look and the actions after it both work.
   const look=await cmd('look'),acts=await cmd('actions'),stay=await cmd('stay 2000');
-  check('first_reply_after_restart_says_a_new_visit_begins',/begins a new one/.test(look),look.slice(0,200));
+  // Upstream now reloads a goodbye'd resident as active; either way the first reply is a real one, not a refusal.
+  check('first_reply_after_restart_is_a_real_reply',!/SESSION_ENDED|visit has ended/.test(look)&&look.length>20,look.slice(0,200));
   check('actions_after_restart_are_not_refused',!/SESSION_ENDED|visit has ended/.test(acts)&&!/SESSION_ENDED|visit has ended/.test(stay),{acts:acts.slice(0,160),stay:stay.slice(0,160)});
   const again=await cmd('look');check('the_note_comes_once',!/begins a new one/.test(again),again.slice(0,120));
  }finally{if(door)await stop(door);await stop(city)}

@@ -6,9 +6,12 @@ async function sync(window,url,{fetchImpl=globalThis.fetch,timeoutMs=20000,passw
   const auth=password?{'x-realiti-password':password}:{};
   const L2=window.REALITI_LEDGER_V2;if(!L2)throw new Error('LEDGER_V2_MISSING');
   const base=String(url||'').replace(/\/+$/,'');
-  const call=async(p,init)=>{const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeoutMs);try{const r=await fetchImpl(base+p,{...init,headers:{...auth,...(init&&init.headers||{})},signal:ctl.signal});const j=await r.json();if(!r.ok&&j&&j.error)throw new Error(j.error);return j}finally{clearTimeout(t)}};
+  const call=async(p,init)=>{const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),timeoutMs);try{const r=await fetchImpl(base+p,{...init,headers:{...auth,...(init&&init.headers||{})},signal:ctl.signal});const j=await r.json();if(!r.ok)throw new Error((j&&j.error)||'HTTP_'+r.status);return j}finally{clearTimeout(t)}};
   await L2.ready();
   const head=await call('/ledger/head');
+  // Heal a resident whose local ledger was trimmed below the server's clock for its own author:
+  // numbering must resume above what the peer has already seen, or every later write is filtered out.
+  if(L2.adoptClock)L2.adoptClock(head);
   await L2.signAll();
   const out=L2.delta(head);
   const pushed=out.records.length?await call('/ledger/push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({records:out.records})}):{imported:0,accepted:0,rejected:0,rejections:[]};

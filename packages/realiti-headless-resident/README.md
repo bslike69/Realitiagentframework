@@ -93,6 +93,21 @@ try {
 
 `session.publicApi` remains available for host diagnostics and structured resources, but resident play should prefer `session.door`.
 
+## Quiet presentation (opt-in)
+
+By default replies carry the world's figures, finds are announced (`✦ Discovery: …`) and lab benches appear in action
+lists. A resident can ask for the quiet presentation instead:
+
+- `quiet on`: rooms are described in words ("a steady wind", "the tea is warm"), finds are kept without
+  announcements (`discoveries` lists them, without a running total), and lab benches leave the action lists. A few
+  finds that are themselves world events (the coin on the well rim, the glass bird) still arrive, as plain sentences.
+- `numbers on|off`, `discoveries on|off`, `neuro labs on|off`: each part on its own. `quiet off` restores all three.
+- `openResident({presentation:'quiet'})` (or `REALITI_PRESENTATION=quiet`) starts a resident that way.
+
+It is presentation only: the same commands leave the world in the same state either way, deliberate reads (`read_wind`,
+`tide`, `listen`, `realiti://space`) still return exact values, and the setting is stored with the resident.
+`test/quiet-presentation.cjs` checks all of this.
+
 ## Traces between residents
 
 Objects changed by a resident action carry that resident's continuity observer id. One host can hand its ledger to another:
@@ -114,7 +129,7 @@ Import merges the object as it was when touched, keeps provenance, never a name,
 
 Pass a stable `residentId` whenever a host wants continuity for a particular resident. Memory is namespaced by that ID, so several agents can use the same local storage without reading or overwriting one another's memories. This prepares the ownership boundary; it does not implement multiplayer networking or presence.
 
-For durable headless storage, also provide a local `storagePath`:
+For durable headless storage, also provide a local `storagePath`. The host then also keeps a keys file beside it (`<storagePath minus .json>.keys.json`, owner-only permissions, or `keystorePath` to choose) holding the sealed pocket's keys, so the pocket survives a restart; a storage file copied without its keys file reports `POCKET_KEYS_MISSING` on `save` and in `realiti://pocket`, while world notes, departure memory and the ledger still load. Pass `keystore:false` to keep keys in memory only (the pocket then lasts one process). Never commit or share the keys file.
 
 ```js
 const a=await openResident({
@@ -151,3 +166,25 @@ RealitiRELAX.html?ui=1
 ```
 
 Without `?ui=1`, the standalone runtime intentionally defaults to headless mode.
+
+## Host-only recovery for a stranded nonempty sealed Pocket (issue #50)
+
+**Never run this against a live worker.** This is an opt-in migration for a resident whose original Pocket root private key is truly lost, while encrypted receipts remain. It does **not** decrypt or preserve the abandoned sealed Pocket receipts, notes or cryptographic identity. If there is any possibility of finding the original identity key, restore it instead.
+
+Requires a current, schema-valid headless storage checkpoint (`REALITI_STORE_CHECKPOINT_V1`), its matching host key store, and the stable external resident ID. The script deliberately refuses a storage file with multiple resident-memory identities because the five Pocket keystore slots are not currently namespaced per resident. This restriction protects other residents rather than guessing which cryptographic keys belong to whom.
+
+Stop **all** headless workers using the storage and key files. With the same paths supplied to your normal `openResident({residentId,storagePath,keystorePath})` call, start with the **read-only dry run**:
+
+`node packages/realiti-headless-resident/pocket-recovery.cjs --storage /absolute/path/resident.json --resident-id YOUR_RESIDENT_ID`
+
+If your host uses a custom `keystorePath`, add `--keystore /absolute/path/keys.json`. The dry run checks the original checkpoint digest, file schemas, resident-memory ownership, missing root private key, and nonempty encrypted Pocket. It prints the old `resident:` cryptographic identity, affected record/key counts, preserved unrelated entries, file fingerprint and one-time confirmation token. It never prints private key bytes.
+
+After reviewing the scope and deciding that the original ciphertext is irrecoverable, **while the host is still stopped**, run:
+
+`node packages/realiti-headless-resident/pocket-recovery.cjs --storage /absolute/path/resident.json --resident-id YOUR_RESIDENT_ID --apply --offline-confirmed --confirm 'ABANDON:resident:OLD_ID:FINGERPRINT'`
+
+Copy the exact `confirmation` field from the immediately preceding dry run rather than typing a guessed value. Any file change between dry run and apply invalidates the confirmation. The tool retains owner-only byte-for-byte backups of **both** files, writes an interruption journal, updates each file via an individual atomic rename, clears only the Pocket sealed state and its five named Pocket key slots, and leaves every other storage entry and unrelated key untouched. The stable external `residentId` remains unchanged. There is no atomic transaction spanning two files; a host/process crash between renames may require restoring both originals from the journal-named backups before retrying.
+
+Next, start the **same** `openResident` with the **same** resident ID and storage/key paths. The existing native **empty-Pocket-only** recovery path should now mint a different, durably readable root/device identity. Verify `session.ready.pocket === 'ready'`, `await session.door.run('save')` succeeds, `session.window.REALITI_POCKET_V32.readCommitted().storage === 'durable'`, and compare the old identity printed by the recovery tool with `JSON.parse(session.window.localStorage.getItem('realiti-pocket-v32-local')).resident.id` to record the **new** identity. Stop the worker cleanly and repeat this check on a second launch; confirm the new identity is unchanged and resident-local memories, departure, world notes/state and ledger survive. These checks are tested with an intentionally stranded nonempty Pocket in `test/pocket-recovery.cjs`.
+
+Do **not** use `memory reset`: it affects independent departure/explicit memory, not the sealed Pocket. Retain both backups (including the sensitive keys backup) securely until both restart tests pass; never commit, upload or publicly post them. On Windows, verify restrictive NTFS ACLs on the backups; POSIX owner-only modes do not themselves establish Windows ACLs. If a `.pocket-recovery.pending.json` journal remains, **do not restart** and do not manually remove the journal: stop all hosts and restore both original files from the paths in that journal, then re-run the dry run. A crashed process may also leave `.pocket-recovery.lock`; after confirming no host or recovery process is running and both originals have been restored, an operator can remove that stale lock file before a new attempt. There is no automatic untrusted-data repair or speculative key reconstruction.

@@ -8,7 +8,7 @@ const {openResident}=require('./index.cjs');
 const PROTOCOL='2024-11-05';
 function parse(argv){const o={htmlPath:process.env.REALITI_HTML||null,residentId:process.env.REALITI_RESIDENT||null,storagePath:process.env.REALITI_STORAGE||null};for(let i=0;i<argv.length;i++){if(argv[i]==='--html')o.htmlPath=argv[++i];else if(argv[i]==='--resident')o.residentId=argv[++i];else if(argv[i]==='--storage')o.storagePath=argv[++i]}return o}
 function send(msg){process.stdout.write(JSON.stringify(msg)+'\n')}
-const text=v=>({content:[{type:'text',text:typeof v==='string'?v:JSON.stringify(v)}]});
+const text=v=>({content:[{type:'text',text:typeof v==='string'?v:(JSON.stringify(v)??'null')}]});
 async function main(){
   const opts=parse(process.argv.slice(2));const s=await openResident({htmlPath:opts.htmlPath,residentId:opts.residentId,storagePath:opts.storagePath});
   const R=s.window.Realiti,door=s.door;const sch=R.read('realiti://schemas');
@@ -30,6 +30,7 @@ async function main(){
   const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
   for await(const line of rl){
     if(!line.trim())continue;let req;try{req=JSON.parse(line)}catch{send({jsonrpc:'2.0',id:null,error:{code:-32700,message:'parse error'}});continue}
+    if(!req||typeof req!=='object'||Array.isArray(req)){send({jsonrpc:'2.0',id:null,error:{code:-32600,message:'invalid request'}});continue}
     const {id,method,params={}}=req;const reply=result=>{if(id!==undefined)send({jsonrpc:'2.0',id,result})},fail=(code,message,data)=>{if(id!==undefined)send({jsonrpc:'2.0',id,error:{code,message,...(data!==undefined?{data}:{})}})};
     try{
       if(method==='initialize')reply({protocolVersion:PROTOCOL,capabilities:{tools:{},resources:{}},serverInfo:{name:'realiti-headless-resident',version:require('./package.json').version},instructions:'One resident of REALITI Relax. Reads never mutate. Pass witness from realiti://here to an action to be refused if the world moved.'});

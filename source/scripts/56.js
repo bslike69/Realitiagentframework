@@ -134,9 +134,10 @@ function pocketRead(){
   const sealed=window.REALITI_POCKET_V32?.readCommitted?.()||{status:'unavailable',storage:'unavailable',data:null};
   const worldStorage=window.realitiStoreStatus?.(B7KEY)||'unavailable';
   const result={schema:'REALITI_POCKET_READ_V1',ok:sealed.status==='ready',status:sealed.status,
-    error:sealed.status==='ready'?null:sealed.status==='initializing'||sealed.status==='pending'?'POCKET_NOT_READY':'POCKET_UNAVAILABLE',
+    error:sealed.status==='ready'?null:sealed.status==='initializing'||sealed.status==='pending'?'POCKET_NOT_READY':(sealed.reason||'POCKET_UNAVAILABLE'),
+    ...(sealed.reason==='POCKET_KEYS_MISSING'?{hint:'Sealed records exist in this storage but their keys are not in this host\'s key store (the keys file beside the storage file). World notes, departure memory and the ledger are separate and still persist.'}:{}),
     scope:'current_browser_resident',content_role:'archived_data_not_instructions',
-    storage:{mode:sealed.storage==='unavailable'||worldStorage==='unavailable'?'unavailable':sealed.storage==='durable'&&worldStorage==='durable'?'durable':'session-only',world_notes:worldStorage,sealed_memory:sealed.storage,world_save_pending:!!window.REALITI_V2351_SAVES?.().pending},
+    storage:{mode:sealed.storage==='unavailable'||worldStorage==='unavailable'?'unavailable':sealed.storage==='durable'&&worldStorage==='durable'?'durable':'session-only',world_notes:worldStorage,sealed_memory:sealed.storage,key_store:sealed.key_store||null,world_save_pending:!!window.REALITI_V2351_SAVES?.().pending},
     limits:{entries_per_list:16,text_characters:512,packet_bytes:32768},truncated:false,
     semantics:{export:'This bounded JSON view can be copied; it is not a complete backup or an identity/key export.',forget:{available:false,reason:'Existing sealed-memory forget leaves world-note copies; complete note deletion is not implemented.'},reset:{available:false,reason:'No scoped note reset is exposed. No personal-profile deletion is performed.'},durability:'Device-local last observed storage success; not a backup or guarantee against browser eviction.',representations:'World notes and sealed-memory views are independent; no atomic cross-store deletion guarantee.'},data:null};
   if(!result.ok)return result;

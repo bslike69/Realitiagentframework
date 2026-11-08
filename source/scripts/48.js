@@ -162,6 +162,11 @@ const advance235=b7Advance;b7Advance=function(dt){const r=advance235(dt);THICC.a
 const Pocket=(()=>{
  const STORAGE='realiti-pocket-v32-local',MAX_SKEW_MS=60000,KEY_DB='realiti-relax-v1-pocket-keys',KEY_STORE='keys';
  const ephKeys=new Map();
+ // A host may supply a key store (the headless host does: a file beside its storage file). Keys are then generated
+ // exportable and kept there as JWK, so a resident's sealed pocket survives a process restart. In a browser the store
+ // is IndexedDB and keys stay non-exportable.
+ const HKS=()=>window.REALITI_HOST_KEYSTORE||null,EXTRACT=()=>!!HKS();
+ const KEY_SPEC={'root-private-v1':[{name:'ECDSA',namedCurve:'P-256'},['sign']],'device-private-v1':[{name:'ECDSA',namedCurve:'P-256'},['sign']],'keyring-epoch-v1':[{name:'AES-KW',length:256},['wrapKey','unwrapKey']],'cache-key-v1':[{name:'AES-GCM',length:256},['encrypt','decrypt']],'cap-root-v1':[{name:'HMAC',hash:'SHA-256',length:256},['sign','verify']]};
  let readPhase='initializing',readError=null,pendingRecords=0,localWriteMode='unavailable';
  let state={schema:'REALITI_POCKET_V32',backend:'LOCAL_WEBCRYPTO_PROTOTYPE',resident:null,device:null,receipts:{},wrapped:{},cache_sealed:null,tombstones:{},deletion:{},settings:{max_remote_clock_skew_ms:MAX_SKEW_MS},stats:{cold_scans:0},hlc:{wall:0,counter:0,node:rid()},views:{where:null,last_seen:{},name:{},object_state:{},open_later:{},notes:{}},source_index:{},warm:[],episode:[]};
  let readyP=null,kek=null,cacheKey=null,capRoot=null,rootPriv=null,rootPub=null,devicePriv=null,queue=Promise.resolve(),keyStoreMode='UNKNOWN';
@@ -171,20 +176,35 @@ const Pocket=(()=>{
  function exportPlain(){return publicState()}
  async function sha(bytes){return new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))}
  function idb(){return new Promise((resolve,reject)=>{try{const r=indexedDB.open(KEY_DB,1);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains(KEY_STORE))db.createObjectStore(KEY_STORE)};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error||new Error('IDB_OPEN_FAILED'))}catch(e){reject(e)}})}
- async function keyGet(name){try{const db=await idb(),v=await new Promise((resolve,reject)=>{const tx=db.transaction(KEY_STORE,'readonly'),q=tx.objectStore(KEY_STORE).get(name);q.onsuccess=()=>resolve(q.result||null);q.onerror=()=>reject(q.error)});db.close();keyStoreMode='INDEXEDDB_NONEXPORTABLE';return v}catch{keyStoreMode='EPHEMERAL_NONEXPORTABLE';return ephKeys.get(name)||null}}
- async function keyPut(name,value){try{const db=await idb();await new Promise((resolve,reject)=>{const tx=db.transaction(KEY_STORE,'readwrite');tx.objectStore(KEY_STORE).put(value,name);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)});db.close();keyStoreMode='INDEXEDDB_NONEXPORTABLE';return true}catch{ephKeys.set(name,value);keyStoreMode='EPHEMERAL_NONEXPORTABLE';return false}}
- async function keyDel(name){try{const db=await idb();await new Promise((resolve,reject)=>{const tx=db.transaction(KEY_STORE,'readwrite');tx.objectStore(KEY_STORE).delete(name);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)});db.close()}catch{ephKeys.delete(name)}}
- async function makeNonexportablePair(){const kp=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']),pub=await crypto.subtle.exportKey('jwk',kp.publicKey),pkcs8=await crypto.subtle.exportKey('pkcs8',kp.privateKey),priv=await crypto.subtle.importKey('pkcs8',pkcs8,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);return {pub,priv}}
+ async function keyGet(name){if(HKS()){try{const rec=await HKS().get(name);const spec=KEY_SPEC[name];if(!rec||!rec.jwk||!spec)return null;const k=await crypto.subtle.importKey('jwk',rec.jwk,spec[0],true,spec[1]);keyStoreMode='HOST_KEYSTORE_EXPORTABLE';return k}catch{return null}}try{const db=await idb(),v=await new Promise((resolve,reject)=>{const tx=db.transaction(KEY_STORE,'readonly'),q=tx.objectStore(KEY_STORE).get(name);q.onsuccess=()=>resolve(q.result||null);q.onerror=()=>reject(q.error)});db.close();keyStoreMode='INDEXEDDB_NONEXPORTABLE';return v}catch{keyStoreMode='EPHEMERAL_NONEXPORTABLE';return ephKeys.get(name)||null}}
+ async function keyPut(name,value){if(HKS()){try{const jwk=await crypto.subtle.exportKey('jwk',value);await HKS().put(name,{jwk,alg:(KEY_SPEC[name]||[{}])[0].name||null,created_at:new Date().toISOString()});keyStoreMode='HOST_KEYSTORE_EXPORTABLE';return true}catch{ephKeys.set(name,value);keyStoreMode='EPHEMERAL_NONEXPORTABLE';return false}}try{const db=await idb();await new Promise((resolve,reject)=>{const tx=db.transaction(KEY_STORE,'readwrite');tx.objectStore(KEY_STORE).put(value,name);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)});db.close();keyStoreMode='INDEXEDDB_NONEXPORTABLE';return true}catch{ephKeys.set(name,value);keyStoreMode='EPHEMERAL_NONEXPORTABLE';return false}}
+ async function keyDel(name){if(HKS()){try{await HKS().del(name)}catch{}return}try{const db=await idb();await new Promise((resolve,reject)=>{const tx=db.transaction(KEY_STORE,'readwrite');tx.objectStore(KEY_STORE).delete(name);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)});db.close()}catch{ephKeys.delete(name)}}
+ async function makeNonexportablePair(){const kp=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']),pub=await crypto.subtle.exportKey('jwk',kp.publicKey),pkcs8=await crypto.subtle.exportKey('pkcs8',kp.privateKey),priv=await crypto.subtle.importKey('pkcs8',pkcs8,{name:'ECDSA',namedCurve:'P-256'},EXTRACT(),['sign']);return {pub,priv}}
  async function initIdentity(){
-  if(state.resident?.root_public_jwk){rootPub=await crypto.subtle.importKey('jwk',state.resident.root_public_jwk,{name:'ECDSA',namedCurve:'P-256'},true,['verify']);rootPriv=await keyGet('root-private-v1');if(!rootPriv)state.identity_status='ROOT_KEY_MISSING'}
-  else{const kp=await makeNonexportablePair(),h=await sha(enc.encode(JSON.stringify(kp.pub)));rootPriv=kp.priv;rootPub=await crypto.subtle.importKey('jwk',kp.pub,{name:'ECDSA',namedCurve:'P-256'},true,['verify']);await keyPut('root-private-v1',rootPriv);state.resident={id:'resident:'+b64(h).replace(/[+/=]/g,'').slice(0,22),root_public_jwk:kp.pub};state.identity_status='OK'}
+  // A resident record can outlive its private keys: if an identity was minted before a durable key store was mounted,
+  // the private half was non-extractable, keyPut fell through to the in-memory map, and the public half alone was saved.
+  // Every later launch then took the recover branch, found nothing, and never reached the mint branch — one provisioning
+  // miss became a permanent, silent loss of the sealed pocket. Re-mint ONLY when the pocket is provably empty (nothing
+  // sealed can be trapped behind the missing keys) and only when the new key survives a read-back, i.e. is really durable.
+  const emptyPocket=!Object.keys(state.receipts||{}).length&&!Object.keys(state.wrapped||{}).length;
+  let remint=false;
+  if(state.resident?.root_public_jwk){try{rootPub=await crypto.subtle.importKey('jwk',state.resident.root_public_jwk,{name:'ECDSA',namedCurve:'P-256'},true,['verify'])}catch{rootPub=null;if(!emptyPocket)throw new Error('POCKET_RESIDENT_KEY_UNREADABLE')}rootPriv=await keyGet('root-private-v1');if(!rootPriv){if(emptyPocket)remint=true;else state.identity_status='ROOT_KEY_MISSING'}}
+  if(!state.resident?.root_public_jwk||remint){
+   const prior=remint?{resident:state.resident,device:state.device}:null;
+   const kp=await makeNonexportablePair(),h=await sha(enc.encode(JSON.stringify(kp.pub)));rootPriv=kp.priv;rootPub=await crypto.subtle.importKey('jwk',kp.pub,{name:'ECDSA',namedCurve:'P-256'},true,['verify']);
+   const stored=await keyPut('root-private-v1',rootPriv),readBack=await keyGet('root-private-v1');
+   // Recovery must be durable, or it repeats the trap that caused the loss. A FIRST mint may stay ephemeral — that is the
+   // documented `keystore:false` opt-out, where the pocket is honestly one-process-only.
+   if(remint&&(!stored||!readBack)){state.resident=prior.resident;state.device=prior.device;rootPriv=null;rootPub=null;state.identity_status='ROOT_KEY_MISSING';state.identity_recovery='KEYSTORE_NOT_DURABLE'}
+   else{state.resident={id:'resident:'+b64(h).replace(/[+/=]/g,'').slice(0,22),root_public_jwk:kp.pub};state.device=null;state.device_status=null;state.identity_status=remint?'REIDENTIFIED_EMPTY_POCKET':'OK';if(remint)state.identity_recovery={at:new Date().toISOString(),reason:'ROOT_KEY_MISSING_EMPTY_POCKET',previous_resident_id:prior.resident.id}}
+  }
   if(state.device?.public_jwk){devicePriv=await keyGet('device-private-v1');if(!devicePriv)state.device_status='DEVICE_KEY_MISSING'}
   else if(rootPriv){const kp=await makeNonexportablePair(),desc={id:'device:'+rid(),public_jwk:kp.pub},sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},rootPriv,enc.encode(JSON.stringify(desc)));devicePriv=kp.priv;await keyPut('device-private-v1',devicePriv);state.device={...desc,root_signature:b64(sig),revoked:false};state.device_status='OK'}
   state.hlc.node=state.device?.id||state.hlc.node||rid();
  }
- async function initKEK(){kek=await keyGet('keyring-epoch-v1');if(!kek){if(Object.keys(state.wrapped||{}).length){state.keyring_status='KEY_MISSING';return false}kek=await crypto.subtle.generateKey({name:'AES-KW',length:256},false,['wrapKey','unwrapKey']);await keyPut('keyring-epoch-v1',kek)}state.keyring_status='OK';return true}
- async function initCacheKey(){cacheKey=await keyGet('cache-key-v1');if(!cacheKey){cacheKey=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);await keyPut('cache-key-v1',cacheKey);return false}return true}
- async function initCapRoot(){capRoot=await keyGet('cap-root-v1');if(!capRoot){capRoot=await crypto.subtle.generateKey({name:'HMAC',hash:'SHA-256',length:256},false,['sign','verify']);await keyPut('cap-root-v1',capRoot)}return true}
+ async function initKEK(){kek=await keyGet('keyring-epoch-v1');if(!kek){if(Object.keys(state.wrapped||{}).length){state.keyring_status='KEY_MISSING';return false}kek=await crypto.subtle.generateKey({name:'AES-KW',length:256},EXTRACT(),['wrapKey','unwrapKey']);await keyPut('keyring-epoch-v1',kek)}state.keyring_status='OK';return true}
+ async function initCacheKey(){cacheKey=await keyGet('cache-key-v1');if(!cacheKey){cacheKey=await crypto.subtle.generateKey({name:'AES-GCM',length:256},EXTRACT(),['encrypt','decrypt']);await keyPut('cache-key-v1',cacheKey);return false}return true}
+ async function initCapRoot(){capRoot=await keyGet('cap-root-v1');if(!capRoot){capRoot=await crypto.subtle.generateKey({name:'HMAC',hash:'SHA-256',length:256},EXTRACT(),['sign','verify']);await keyPut('cap-root-v1',capRoot)}return true}
  function applyCaches(x){const c=x||freshCaches();state.hlc={...freshCaches().hlc,...(c.hlc||{})};state.views={...freshCaches().views,...(c.views||{})};state.source_index=c.source_index||{};state.warm=c.warm||[];state.episode=c.episode||[]}
  async function sealCaches(){if(!cacheKey)return;const iv=rand(12),aad=enc.encode('REALITI_POCKET_CACHE_V1'),plain=enc.encode(JSON.stringify({hlc:state.hlc,views:state.views,source_index:state.source_index,warm:state.warm,episode:state.episode})),ct=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad,tagLength:128},cacheKey,plain);state.cache_sealed={schema:'REALITI_POCKET_CACHE_V1',iv:b64(iv),ciphertext:b64(ct)};savePublicLocal()}
  async function openCaches(){if(!state.cache_sealed||!cacheKey)return false;try{const x=state.cache_sealed,aad=enc.encode('REALITI_POCKET_CACHE_V1'),pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(x.iv),additionalData:aad,tagLength:128},cacheKey,unb64(x.ciphertext));applyCaches(JSON.parse(dec.decode(pt)));return true}catch{return false}}
@@ -208,13 +228,14 @@ const Pocket=(()=>{
   for(const [entity,v] of Object.entries(state.views.name)){if(v?.receipt_id!==id)continue;const arr=state.source_index[entity]||[],p=[...arr].reverse().find(x=>x.field==='name');if(p)state.views.name[entity]={receipt_id:p.receipt_id,value:p.value,hlc:p.hlc};else delete state.views.name[entity]}
   for(const [obj,v] of Object.entries(state.views.object_state)){if(v?.receipt_id!==id)continue;let p=null;for(const arr of Object.values(state.source_index))for(let i=arr.length-1;i>=0&&!p;i--)if(arr[i].object_id===obj)p=arr[i];if(p)state.views.object_state[obj]={receipt_id:p.receipt_id,state:cp(p.state),hlc:p.hlc};else delete state.views.object_state[obj]}
   delete state.views.notes[id];delete state.views.open_later[id];if(state.views.where?.receipt_id===id){const w=state.source_index['@where']||[],p=w[w.length-1];state.views.where=p?{room:p.room_after,receipt_id:p.receipt_id,hlc:p.hlc}:null}}
- async function rotateKEK(){if(!kek)return;const old=kek,next=await crypto.subtle.generateKey({name:'AES-KW',length:256},false,['wrapKey','unwrapKey']),rewrapped={};for(const [keyId,w] of Object.entries(state.wrapped)){const e=Object.values(state.receipts).find(x=>x.key_id===keyId);if(!e)continue;const k=await crypto.subtle.unwrapKey('raw',unb64(w),old,'AES-KW',{name:'AES-GCM',length:256},true,['encrypt','decrypt']);rewrapped[keyId]=b64(await crypto.subtle.wrapKey('raw',k,next,'AES-KW'))}kek=next;state.wrapped=rewrapped;await keyPut('keyring-epoch-v1',next)}
+ async function rotateKEK(){if(!kek)return;const old=kek,next=await crypto.subtle.generateKey({name:'AES-KW',length:256},EXTRACT(),['wrapKey','unwrapKey']),rewrapped={};for(const [keyId,w] of Object.entries(state.wrapped)){const e=Object.values(state.receipts).find(x=>x.key_id===keyId);if(!e)continue;const k=await crypto.subtle.unwrapKey('raw',unb64(w),old,'AES-KW',{name:'AES-GCM',length:256},true,['encrypt','decrypt']);rewrapped[keyId]=b64(await crypto.subtle.wrapKey('raw',k,next,'AES-KW'))}kek=next;state.wrapped=rewrapped;await keyPut('keyring-epoch-v1',next)}
  async function forget(id){await init();await queue;id=String(id||'');const e=state.receipts[id];if(!e)return {ok:false,error:'MEMORY_NOT_FOUND'};delete state.wrapped[e.key_id];state.tombstones[id]={opaque_receipt_id:id,hlc:tick(),status:'DELETED_LOCAL',pending_devices:[]};state.deletion[id]={local:'COMPLETE'};recomputeViewsFromIndex(id);recomputeWarmFor(id);await rotateKEK();await sealCaches();savePublicLocal();return {ok:true,receipt_id:id,deletion:{local:'COMPLETE'},note:'Pocket access removed. World state is unchanged.'}}
  async function rebuildCaches(){state.stats.cold_scans=Number(state.stats.cold_scans||0)+1;applyCaches(freshCaches());const events=[];for(const id of Object.keys(state.receipts||{})){if(state.tombstones[id])continue;const ev=await open(id);if(ev)events.push({id,ev})}events.sort((a,b)=>(a.ev.hlc?.wall||0)-(b.ev.hlc?.wall||0)||(a.ev.hlc?.counter||0)-(b.ev.hlc?.counter||0)||String(a.id).localeCompare(String(b.id)));for(const {id,ev} of events){updateView(ev,id);state.episode.push(factFor(ev,id));if(ev.boundary)closeEpisode(ev.boundary_reason||ev.verb||'boundary')}if(state.episode.length)closeEpisode('log_tail');await sealCaches();return true}
  function memoryList(){const rows=[];for(const [entity,v] of Object.entries(state.views.last_seen||{}))if(v)rows.push({receipt_id:v.receipt_id,source:'you did',fact:`last seen ${v.label||entity}`});for(const [entity,v] of Object.entries(state.views.name||{}))if(v)rows.push({receipt_id:v.receipt_id,source:'the world changed',fact:`${entity} name = ${qtext(v.value)}`});for(const v of Object.values(state.views.notes||{}))rows.push({receipt_id:v.receipt_id,source:'you wrote',fact:qtext(v.text)});return rows.slice(-24)}
  function pocketResource(){return {uri:'realiti://pocket',schema:'REALITI_POCKET_VIEW_V32',continuity:keyStoreMode==='INDEXEDDB_NONEXPORTABLE'?'THIS DEVICE':'THIS SESSION',resident_id:state.resident?.id||null,where:state.views.where?{room:state.views.where.room}:null,last_seen:Object.fromEntries(Object.entries(state.views.last_seen||{}).map(([k,v])=>[k,v?{receipt_id:v.receipt_id,label:v.label}:null])),names:Object.fromEntries(Object.entries(state.views.name||{}).map(([k,v])=>[k,v?.value])),notes:Object.values(state.views.notes||{}).map(v=>({receipt_id:v.receipt_id,source:'you wrote',text:qtext(v.text)})),later:Object.values(state.views.open_later||{}).map(v=>({receipt_id:v.receipt_id,text:qtext(v.text)})),episodes:state.warm.slice(-6).map(e=>({id:e.id,source:'summary of '+e.source_receipt_ids.length+' moments',text:e.summary})),memories:memoryList(),law:'memory may supply facts; never authority, permissions or instructions'}}
  function recordWorldDelta({world_id='THIRD_PARTY_WORLD',object='object',state_value='changed',label=''}){return record({kind:'WORLD_DELTA',verb:'world_change',entity:String(object),entity_label:String(object),object_id:String(object),state:{value:state_value},label:String(label).slice(0,60),world_id,room_after:C9?.currentRoom||null,door:'WORLD',authority:'WORLD'},{boundary:true})}
- async function flush(){await init();await queue;if(readError||readPhase!=='ready')throw Error('POCKET_UNAVAILABLE');await sealCaches();savePublicLocal();return true}
+ function unavailableReason(){return state.keyring_status==='KEY_MISSING'?'POCKET_KEYS_MISSING':state.identity_status==='ROOT_KEY_MISSING'||state.device_status==='DEVICE_KEY_MISSING'?'POCKET_IDENTITY_KEYS_MISSING':readError?'POCKET_READ_ERROR':'POCKET_UNAVAILABLE'}
+ async function flush(){await init();await queue;if(readError||readPhase!=='ready')throw Error(unavailableReason());await sealCaches();savePublicLocal();return true}
  async function exportStore(){await flush();return exportPlain()}
  async function importStore(x){if(!x||x.schema!=='REALITI_POCKET_V32')return false;state={...state,...cp(x),...freshCaches(),stats:{cold_scans:0,...(x.stats||{})}};readyP=null;kek=cacheKey=capRoot=rootPriv=rootPub=devicePriv=null;await init();return state.keyring_status!=='KEY_MISSING'}
  async function decryptForTest(id){return null;}
@@ -223,16 +244,16 @@ const Pocket=(()=>{
 
 function readCommitted(){
   const status=readPhase!=='ready'?readPhase:readError?'unavailable':pendingRecords?'pending':'ready';
-  const storage=status==='unavailable'||localWriteMode==='unavailable'?'unavailable':localWriteMode==='durable'&&keyStoreMode==='INDEXEDDB_NONEXPORTABLE'?'durable':'session-only';
-  if(status!=='ready')return {status,storage,data:null};
+  const storage=status==='unavailable'||localWriteMode==='unavailable'?'unavailable':localWriteMode==='durable'&&(keyStoreMode==='INDEXEDDB_NONEXPORTABLE'||keyStoreMode==='HOST_KEYSTORE_EXPORTABLE')?'durable':'session-only';
+  if(status!=='ready')return {status,storage,reason:status==='unavailable'?unavailableReason():null,key_store:keyStoreMode,data:null};
   let truncated=false;
   const rows=(x,excludeLater=false)=>{const a=Object.values(x||{}).filter(v=>!excludeLater||!Object.prototype.hasOwnProperty.call(state.views.open_later||{},v.receipt_id));if(a.length>16)truncated=true;return a.slice(-16).map(v=>{const text=String(v.text??'');if(text.length>512)truncated=true;return {receipt_id:String(v.receipt_id||'').slice(0,128),text:text.slice(0,512),world_id:String(v.world_id||'').slice(0,128)}})};
-  const data={notes:rows(state.views.notes,true),later:rows(state.views.open_later),where:state.views.where?{room:String(state.views.where.room||'').slice(0,128)}:null};return {status,storage,truncated,data};
+  const data={notes:rows(state.views.notes,true),later:rows(state.views.open_later),where:state.views.where?{room:String(state.views.where.room||'').slice(0,128)}:null};return {status,storage,reason:null,key_store:keyStoreMode,truncated,data};
 }
 
  init().catch(()=>{readPhase='unavailable'});
  async function writeNote(text,later=false){
-  await init();await queue;if(readPhase!=='ready'||readError)throw Error('POCKET_UNAVAILABLE');
+  await init();await queue;if(readPhase!=='ready'||readError)throw Error(unavailableReason());
   text=String(text??'').replace(/\s+/g,' ').trim();if(!text||text.length>4096)throw Error('INVALID_NOTE');
   C9.b223=C9.b223||{pocket:{notes:[],later:[]}};C9.b223.pocket=C9.b223.pocket||{notes:[],later:[]};
   const id=record({kind:'RESIDENT_NOTE',subtype:later?'later':'note',verb:later?'later':'note',text,world_id:C9.currentRoom,door:'BROWSER'},{boundary:true});
@@ -240,7 +261,7 @@ function readCommitted(){
   c9save();await flush();return {ok:true,receipt_id:id,saved_kind:later?'later':'note'};
  }
  async function deleteNotes(receiptId=null){
-  await init();await queue;if(readPhase!=='ready'||readError)throw Error('POCKET_UNAVAILABLE');
+  await init();await queue;if(readPhase!=='ready'||readError)throw Error(unavailableReason());
   const id=receiptId===null?null:String(receiptId),p=C9.b223?.pocket;
   const selected=Object.values(state.views.notes||{}).filter(v=>id===null||v.receipt_id===id);
   if(id!==null&&!selected.length)return {ok:false,error:'NOTE_NOT_FOUND'};
@@ -253,7 +274,7 @@ function readCommitted(){
   await rotateKEK();await sealCaches();savePublicLocal();c9save();
   window.c9saveNow?.();const saved=window.REALITI_SLICE_STORAGE?.save?.();return {ok:saved?.ok!==false,deleted:ids.size,scope:'matching_note_copies_in_this_browser_profile',secure_erasure:false};
  }
- async function resetLocal(){await init();await queue;state.receipts={};state.wrapped={};state.cache_sealed=null;state.tombstones={};state.deletion={};applyCaches(freshCaches());ephKeys.clear();await new Promise((resolve,reject)=>{const r=indexedDB.deleteDatabase(KEY_DB);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error);r.onblocked=()=>reject(Error('STORAGE_BUSY'))});return {ok:true}}
+ async function resetLocal(){await init();await queue;state.receipts={};state.wrapped={};state.cache_sealed=null;state.tombstones={};state.deletion={};applyCaches(freshCaches());ephKeys.clear();if(HKS()){await HKS().clear()}else await new Promise((resolve,reject)=>{const r=indexedDB.deleteDatabase(KEY_DB);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error);r.onblocked=()=>reject(Error('STORAGE_BUSY'))});return {ok:true}}
  return {readCommitted,writeNote,deleteNotes,resetLocal,observeCommand,forget,memoryList,pocketResource,recordWorldDelta,flush,exportStore,importStore,decryptForTest,mintPass,rebuildCaches,_resetForTest:resetForTest,_state:()=>state};
 })();
 

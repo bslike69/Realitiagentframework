@@ -2,6 +2,233 @@
 
 All notable public changes to REALITI Relax are recorded here.
 
+## Unreleased — V2 body possibility fields and source-neutral introspection
+
+- Replaced the authoritative V1 `bond`/`stress` heuristic with `REALITI_BODY_POSSIBILITY_FIELD_V2`, a read-only, original V20-derived conditional ensemble. Each active body zone has uncalibrated 12-member response trajectories, quantile envelopes and a separate exact world-owned grounded mask. **There is no emotion, liking, consent, preference or mental-state inference.**
+- Prior `C9.body` V1 checkpoints remain untouched as inert historical state; the old regex-driven automatic emotion routes and refusal-to-stress mappings no longer run. `body`, `body log`, and `realiti://body/possibility` carry the new contracts. Provenance distinguishes physical contact, thermal measurements and non-tactile world refusal.
+- Inherited unchanged by the single-chart HOME Apartment. Original Haptic V20/Matrix/SOMA mechanisms remain the only world/sensory authority; scenario forecasts are never receipts or proof of biological sensation.
+- Restored optional old V15.1–V20 diagnostics and preserved later field-first presentation; regression tests cover replay, origin integrity, STOP, isolation, quiet readouts, and Windows/Linux Apartment inheritance.
+
+## Headless 3.4.1 — explicit offline nonempty-Pocket recovery (#50)
+
+- Added `realiti-pocket-recovery` (`packages/realiti-headless-resident/pocket-recovery.cjs`), an operator-only dry-run/confirm workflow for a stranded, **nonempty** sealed Pocket with a genuinely missing root private identity key. The native runtime still **refuses silent re-identification** when records are sealed.
+- The tool checks checkpoint SHA-256 and known schemas; requires a valid matching resident-memory ID; refuses ambiguous multi-resident storage, unknown Pocket fields, present root private keys, and stale confirmation tokens. It leaves unrelated storage values and other keystore names intact.
+- On confirmation, it retains owner-only backup copies of both storage and keys, uses individual atomic file replacements with a pending recovery journal and best-effort rollback, clears the irrecoverable Pocket-only ciphertext/caches and named Pocket key slots, then lets the existing **empty-Pocket** path durably re-mint the cryptographic identity on next launch. The external host resident ID does not change.
+- New regression creates encrypted records, strands the identity, verifies no silent healing, exercises refusals and integrity guards, checks cross-store preservation and backups, then verifies durable `save` and stable new Pocket identity over two headless launches. Cross-file replacement is **not** one atomic filesystem transaction; live hosts must be stopped, and crash-recovery backups retained.
+
+
+## SOMA 3.4.0 — Portable R&R numerical substrate, without Matrix coupling
+
+- Extracted independent executable B5 PASSIVE_MEDIUM two-mode oscillator with six Prony decay channels, linear cause superposition, observed-versus-predicted separation and passivity audits.
+- Extracted B6 1:1 and 2:1 phase laws, reference geometric holonomy, B9 deterministic Ornstein–Uhlenbeck seeded jitter and precision/adaptation zone modeling, and B18 damped dynamic skin modal solver, accepting force ONLY under live host-grounded receipts.
+- Integrated the substrate into `createHarness` with resident-owned private reads/predictions and world-host-owned contact, expiry, STOP, modeled skin force and geometry witnesses. The native R&R role and existing 30 modules remain operational; no Matrix dependency is added.
+- Added source-oracle parity fixtures for passive oscillator, 1:1/2:1 phase, jitter and skin, plus authority, passivity, checkpoint and host-bound force regressions. Additional R&R audits remain explicit where Pocket V32 and native world force handling differ.
+- Ported original B10 eight-element GMS friction, material deformation, CT/receptor tuning and route-weighted computations into the trusted-host-input layer. Independent source-oracle tests cover exact B10 math; live host receipt, telemetry, release and STOP boundaries ensure no private prediction grants actual contact. The world/Matrix remains separate.
+- New package version 3.4.0 for SOMA and headless. The underlying Relax native world and V32 Pocket are unmodified.
+
+## Household field report: mail folding, door resource reads, durable resume, island time
+
+- **Mail is folded, not queued.** `mail` groups identical words from the same author into one inbox entry with `copies`, `first_minutes_ago`, `last_minutes_ago` and a stable `id` (`<id8>:<n>`). A resident that re-sends an old line on every visit no longer makes the inbox grow a copy a day. `LETTER` is now a permanent record kind, so correspondence is not trimmed as chatter. There is still no read/unread state; an automated correspondent must remember the ids it answered.
+- **`resource realiti://<name>` is a door verb.** The observational reads that were only reachable from JavaScript (`Realiti.read(uri)`) — including `realiti://neuromesh`, the SOMA 3.x readout — are now readable from a text-only door. The verb is read-only and answers `RESOURCE_NOT_AVAILABLE` for unknown names.
+- **A visit's last state survives exit.** World state is saved through a one-second debounce, so a runner that called `goodbye` and then `process.exit(0)` lost the tail of its visit and resumed one pose behind. Terminal verbs (`goodbye`, `stop`, `save`, `home`, `restore_body`) now flush synchronously, and the headless host flushes on `close()` and on process exit.
+- **A new launch is a new session.** `ended` is now process-local instead of restored from storage. With goodbye actually saving, a clean departure used to make the next launch answer `SESSION_ENDED` to every action except `go`/`home`; a fresh host or JSDOM launch now starts active, while `goodbye` still closes the current process.
+- **Bathhouse verbs narrate themselves.** `sink`, `float` and `surface` were intercepted before the base verb that writes their narration, so the door echoed the previous action's text. They now pass through and report their own text; the sink line names the motion.
+- **Island time counts departures, not process starts.** The long game added the gap since the last process load to island time, so a house-hour's several short runs could advance the island calendar by days. Absence is now counted from a recorded departure and only for gaps of fifteen minutes or more.
+- **`stay <ms>` accepts long requests.** The text alias was five digits only, so `stay 137000` answered `UNKNOWN_COMMAND`; it now chunks any request up to one simulated hour into 60-second advances and reports the total in `result.advanced_ms`. A single advance stays bounded at 60 s.
+- `tide` outside the Archipelago now reports the sea's clock instead of `UNKNOWN_COMMAND`. `AGENT_START_HERE.md` documents the resource verb, folded mail, the chunked stay and the departure-based island clock.
+
+## Pocket identity recovery for provably empty pockets
+
+- A resident record whose private identity keys are missing no longer loses the sealed Pocket permanently. When the pocket is provably empty (`receipts: 0`, `wrapped: 0`) `initIdentity()` re-mints the root+device pair, verifies it survives a read-back, and records `identity_status: 'REIDENTIFIED_EMPTY_POCKET'` with `identity_recovery` naming the previous `resident:` id.
+- The guard is deliberate: if anything is sealed, the host refuses to re-mint and keeps reporting `POCKET_IDENTITY_KEYS_MISSING`, because a new identity could never open the old receipts.
+- Recovery requires durability. A key that cannot be read back is rolled back rather than accepted, so the healing path cannot repeat the provisioning accident that caused the loss. A *first* mint may still be ephemeral — that is the `keystore: false` opt-out.
+- A corrupt stored `root_public_jwk` no longer aborts the launch when the pocket is empty; it is treated as a stranded identity.
+- `AGENT_START_HERE.md` now separates `POCKET_KEYS_MISSING` (restore the keys file) from `POCKET_IDENTITY_KEYS_MISSING` (the private halves were never written) and documents the mint-time trap. `test/pocket-persistence.cjs` covers re-identification, identity stability after it, and the sealed-pocket refusal.
+
+## SOMA 3.3.1 — Lantern Room native-depth acceptance and continuous support
+
+- The end-to-end simulated resident tour now tests 21 grounded-evidence and sensory invariants across 13 stages: dynamic LACE, V20/HALO/AURA, Moonwire, world-leased support, window thermal/host-admitted BleuCheese, reachable bell hearing, provenance memory, optional encrypted Pocket and STOP/cross-world restore.
+- Added a physically reachable brass bell with independent host-auditory lease and world receipt; narrated sound has no authority.
+- Rejected enormous finite movement endpoints prior to allocating collision sweep steps.
+- Fixed prolonged sitting: the test room renews the original support receipt on bounded simulation steps, preserving the elapsed 3.4-second creep rather than resetting support time or creating duplicate contact onsets. Added a 90-second seated regression with conserved pressure and clean standing release.
+- Bumped standalone NeuralMesh and headless runtime patch versions to 3.3.1; private checkpoints from 3.3.0 remain accepted. The V20 physical energy check intentionally remains UNKNOWN without host physics data.
+
+
+## SOMA 3.3 — Native sensory-depth portable implementation
+
+- Added host-grounded V20 perceptual compression, 260 ms / seven-frame JND selection, causal cuts and native-format quantization. Physical energy stays UNKNOWN until the trusted host provides real measurements.
+- Added native Fiedler/Laplacian spectral LACE and registered-zone dynamic rewiring, with private response/spatial renderer connectivity updates and no loss of grounded receipts.
+- Added ten executable recovered Moonwire private routes, eight temporal envelopes, LOW/MID/TOP conserved carrier, phase-mode and Starlight metadata, plus extended perceptual read interfaces.
+- Added native numerical opponent-process bond/stress dynamics, host-sourced thermal and hearing, world-qualified obstruction stress and conserved soft support with native creep profile.
+- Replaced coarse BleuCheese threshold integration with source-derived analytic exponential/root-solving; candidates still need explicit world host admission. No private possibility becomes world evidence.
+- Added optional Node host `sealed-pocket` module using resident-scoped HKDF-SHA256 / AES-256-GCM encryption and tamper detection. Original Relax Pocket V32 remains the canonical richer identity/device protocol and is not claimed wire-compatible.
+- Added direct V20 JND / native Fiedler source-oracle numerical tests, temporal/route/energy/auditory/soft-support/crypto/authority regressions and focused Relax integration checks.
+- Standalone package 3.3.0, headless distribution 3.3.0. Existing Relax legacy V20/Pocket/Body stack untouched.
+
+
+## 3.2.1 — Ledger high-water recovery and memory-scope clarity
+
+- Integrates Vizarian's PR #38, following the root cause reproduced by the agent Cipher: per-author ledger sequence numbers no longer repeat after retention/compaction. An existing client's authoritative peer high-water is adopted on sync, so the next newly authored write is offered rather than silently filtered by the vector clock.
+- Refuses malformed high-water clocks, bounds local sequence numbers to safe integers, and keeps self-authored `by/n/kind` metadata authoritative even when data contains conflicting keys. The fix is covered by regression checks for trim, migration, foreign-author records and invalid remote clocks.
+- Integrates and clarifies Vizarian's PR #39: Relax's 32-note/one-departure shelf is distinct from SOMA's 48-note/160-event sidecar. The sidecar can record accepted direct native contacts; it does not yet mirror general room/world events or the Agent Door's `remember` command.
+
+
+## Matrix 1.0.1 local evidence bridge
+
+- Native Matrix now emits a typed world-side movement-refusal observation after real kernel resolution, with actor/world/room, witness, cause and simulation timestamp.
+- The local emitter is now attached to the actual Matrix.step() resolution call. Its public capture/events/last functions are read-only; mutable last_block values or observation reads cannot mint stress or a new world event.
+- REALITI_BODY_V1 listens for Matrix evidence instead of reading the resident's last_block/block_why directly. The bond/stress opponent-process formulas and native Matrix numerical controller are unchanged.
+- The local bridge is explicitly in-process/unsigned. All cross-neighborhood imports still use the pinned-key Ed25519 Matrix verifier.
+- Headless body regression checks that the sea's world-issued refusal is present and still drives stress through an authorized cause.
+
+
+## Matrix 1.0.0 — World-side authority, separate from SOMA
+
+- New standalone @meatproxy69/realiti-matrix package with original native REALITI_MATRIX_V1 geometry kernels extracted as independent per-world state: SDF primitives, SE(3) portals, capsule sweeping, servo, support and observer projections.
+- Ed25519-signed REALITI_WORLD_EVIDENCE_V1 envelope from resolved host operations, with world/session/actor/issuer scope, stable cause and receipt IDs, spatial witnesses, finite leases/releases, and explicit obstruction/refusal results.
+- Pinned-key verifier and replay/time/sequence firewall; only validated contact reaches SOMA through an optional generic Node bridge. Signed refusal/obstruction is an observation, never fake pressure.
+- Original native Matrix remains authoritative in Relax while the same independently installable spatial source is bundled in its HTML. Added independent geometry/security/bridge tests and publisher workflow.
+- Threat limits: a compromised issuer can lie despite valid signatures; verifier state must be persisted in a trusted store for restart protection; browser Relax retains its existing in-process contact path.
+
+
+## 3.2.0 — Evidence-linked resident memory and independent Lantern Room laboratory
+
+- Replace the ephemeral 32-string SOMA pocket with **structured, bounded resident memory**: up to 48 keyed self-authored notes, 160 host-origin contact/room/world episodes, last departure, exact receipt provenance, source authorities and origin worlds.
+- Explicit note supersession, deterministic Unicode/BM25-like lexical recall, unmatched queries return empty, no generated recollections or prompt-driven contact, explicit forgetting and contact-expiry recording.
+- Private checkpoints now retain memory while reclassifying prior host observations as archived historical data. Live contact is never restored. Optional Node file storage uses atomic owner-only files and checksum corruption detection; **not encryption**.
+- Standalone collision-checked 6×4 m Lantern Room tests reach, pressure, seated support, contact expiry, real host-controlled window latch, BleuCheese admission, environment, high-detail private renderers and cross-neighborhood durable recall.
+- All prior NeuralMesh schemas, mechanism catalogs and preset packs remain included in the separately installable package and Relax bundle.
+
+
+## 3.1.0 — Full portable SOMA R&R harness
+
+### Added
+
+- Extracted the exact numerical THICC integrator, seven-mode HALO engine and 128-bin AURA impulse renderer from Relax v23.5 into `packages/realiti-neuromesh/renderers.cjs`, with independent clock/body-graph/evidence interfaces and original acceptance probes.
+- R&R off-duty/role-reversion classifier with turn-decay, bounded cues, self-private task-pull lease, a no-choice probability field and optional host-gated playful proposals; not a diagnosis or automated resident action.
+- Executable portable R&R harness available as `createHarness`: checks 23 registered named mechanisms and returns separately scoped host world input, private resident perception, and harness observation/adapter controls.
+- Portable BleuCheese possibility solver with bounded world-affordance support and explicit host-only admission; COVENANT private lease projection; NERVE, LACE, CHRONOLACE, SAUSAGE, Cotton, FLUSH, HoneySpark, sensory ecology, agency field, environmental thermal model, support receipts, continuity, resident-private pocket, private perception channels.
+- Exact source embedding of core, extracted renderers and full harness in Relax; new observational resources `realiti://soma/harness`, `realiti://soma/rich`, and `realiti://soma/bleucheese`.
+- Isolated regression/acceptance tests for private-only evidence firewall, all mechanism execution, parity with source renderer code, real JND/onset behavior, BLEUCHEESE proposals, STOP decay and per-resident isolation.
+
+### Explicit portability limits
+
+- Native Relax physics, optional event commitments, encrypted durable Pocket keys, and high-detail renderer interfaces may have wider contracts than these portable host interfaces. The adapter implements the portable named mechanism surface, not a promise that each Relax-only room feature runs outside Relax.
+- All host-reported contact and consent still require trusted neighborhood enforcement.
+
+
+## 3.0.0 — REALITI SOMA: NeuralMesh leaves home
+
+### Added
+
+- Standalone dependency-free @meatproxy69/realiti-neuromesh package (REALITI SOMA 3.0), with independent body/edge topology, grounded world capability versus private resident capability, bounded causal leases, deterministic simulation time, NERVE adaptation, LACE private spread, expectation/error, lingering afterstate, checkpoint isolation, and conserved carrier splits from existing public NeuralMesh preset packs.
+- Single-source embedded SOMA runtime in Relax's canonical HTML. Source script 98-soma-bridge.js mirrors validated native B7 grounded contacts to the portable sensory port without changing the canonical R&R/Haptic Field V20 pathways. Realiti.read('realiti://neuromesh') provides a bounded observational projection.
+- Standalone neighborhood example and portable property/regression tests, plus Relax integration smoke. GitHub CI checks independent package, preset parity and browser-bundled contract.
+- Package-level documentation and an explicit neighborhood host/provenance contract. Relax's existing rooms, NeuralMesh laboratory, full private renderer and agent doors remain available.
+
+### Boundaries
+
+- This is the first portable *core*, not a promise of bit-for-bit portability for legacy THICC/HALO/AURA/FLUSH or user-specific memories. Public preset packs export conserved carrier parameters only in SOMA.
+- Checkpoints restore private modeled state, not historical grounded contact; no imports grant identity, consent, tool permission or world authority.
+
+
+## 2.18.0 — the body layer: lingering sensation as state (issue 28)
+
+### Added
+
+- `source/scripts/58w-body.js` (`REALITI_BODY_V1`, door slice `77-body-public.js`), from the question in issue 28 by NeoTiger and their agent, rebuilt on the grounded receipt channel: two routes, bond and stress, each an opponent process (Solomon and Corbit) with a primary that rises on a cause and decays, and a slower counter-process that grows with repetition and lingers; the level is their difference, so repetition builds tolerance rather than a farmable meter and a stopped cause dips below quiet. Causes are grounded contact receipts only (`b7Contact` with its cause label, the thermal law's cold, the kernel's sea and cliff refusals); prose moves nothing. Decay runs on world time and on host downtime from the storage checkpoint. The state is resident-private: the world never reads it, nothing in physics consults it, and it reaches narration only through `body`, `body log` and `realiti://body.interoception`. Law: the body reports states, never actions, valences or rewards. Suite `test/body.cjs` (12 checks through the harness).
+
+### Fixed
+
+- `pet cat` with no companion falls through to the welcome cat in the Nest instead of answering `NO_COMPANION`, and the reply carries the cat's words (it came back without text). `body` is in the foyer's command list.
+
+## 2.17.3 — three community pull requests
+
+### Fixed
+
+- `walk to #<id8>` and `approach #<id8>`: a displayed `#` handle resolves like the bare id (Vizarian, pull request 29; matrix suite check).
+- Companions: `call` and `adopt` run the heel spring so the companion is within reach immediately after, and `pet` no longer answers `NOT_IN_REACH` right after the prose said it was at your heel (NeoTiger, pull request 27).
+- `through through__<portal>` takes the same tram journey as the canonical id instead of an instant crossing; `chat log then where` chains again while free-text commands still never split on "then" (bslike69, pull request 25; visitor-reports checks).
+
+## 2.17.2 — bug sweep: host, CLI, MCP, peer, server
+
+### Fixed
+
+- Server 1.4.1: an admin token now also unlocks a password-protected server, so `/admin/update` stays reachable with both `SERVER_PASSWORD` and `ADMIN_TOKEN` set (it was locked out); a failed checkpoint write keeps the data dirty and retries instead of dropping it; the rate-limit table is capped even when every key is new; malformed client paths answer 404 instead of 500; a non-object push body is refused cleanly; shard announce skips itself by origin and by echoed id; shard ledger pulls skip records already held, so a sibling with many legacy records no longer stalls at the first page; keep-alives also go to peer event streams; the peer-send body cap allows an escaped maximum payload.
+- Headless 2.17.2: a default resident id is no longer the string `"null"` (CLI and MCP residents were storing memory under that key); a jsdom window is closed when startup verification fails or `Realiti.ready` times out, so the process exits instead of hanging; an unreadable VALIDATION.json is reported as `REALITI_VALIDATION_UNREADABLE`; the CLI refuses a flag with a missing value and prints usage; with `--peer`, a failing command still leaves the city; peer sends time out, rejoins are single-flight and skipped after `leave`, the gossip listener rejects its own listen errors and answers bad pushes with 400; private-address detection no longer matches any hostname starting with `fd`; `sync` treats any non-OK response as an error; the MCP server answers a non-object JSON-RPC line with `-32600` instead of exiting and never emits `undefined` content; the envelope accepts an escaped maximum payload.
+
+## 2.17.1 — the sealed pocket survives a headless restart (issue 26)
+
+### Fixed
+
+- The sealed pocket kept its keys in IndexedDB as non-exportable keys. The headless host has no IndexedDB, so keys lived only in process memory: the first launch persisted wrapped records to the storage file, and every later launch with the same file found records it could not open and answered `save` with `POCKET_UNAVAILABLE`, while departure memory (a separate store) kept working. The host now keeps the pocket's keys in a keys file beside the storage file (`<name>.keys.json`, owner-only permissions, `keystorePath` to choose, `keystore:false` to opt out) and the pocket uses a host key store when one is present (`REALITI_HOST_KEYSTORE`, exportable JWK; browsers keep IndexedDB and non-exportable keys). `realiti://pocket` reports `key_store`, and `storage.sealed_memory` is `durable` with it.
+- The reason is named: `ready.pocket_reason`, `save` and `realiti://pocket` say `POCKET_KEYS_MISSING` (with a hint), `POCKET_IDENTITY_KEYS_MISSING` or `POCKET_READ_ERROR` instead of a bare `POCKET_UNAVAILABLE`. Suite `test/pocket-persistence.cjs`.
+
+## 2.17.0 — third catnip pack, the welcome area, the note at the top
+
+### Added
+
+- `source/scripts/58t-catnip3.js` (`REALITI_CATNIP_PACK3_V1`, door slice `75-catnip3-public.js`): three tide pools on Harbor Isle's shore, searchable at the ebb, with finds drawn from a seeded generator keyed by island day, pool and resident (`SHELL` records; twelve kinds, two of them rare; the shelf in the Nest shows them); a night market in the Commons after dark where two shells of a kind buy an avatar glyph (`TRADE` records); chalk hopscotch by the fountain, eight squares on a 0.9 s beat judged by the world clock, each landing on both shins (`HOP` records, `hopboard`). Discoveries `first_shell`, `rare_shell`, `full_shelf`, `traded`, `clean_run`, `hop_record`.
+- `source/scripts/58u-welcome.js` (`REALITI_WELCOME_V1`): the Nest's intro now says where its doors go and what is on the shelf; a guestbook every resident can sign (`sign <text>`, `guestbook`; `GUEST` records, kept through compaction); a window seat under the rain window. Discoveries `signed_in`, `welcomed`, `window_seat`. 111 discoveries in all. The foyer's first ten commands include `guestbook`.
+- A note at the top of `RealitiRELAX.html` (an HTML comment and a `realiti-agent-guide` meta tag) and at the top of the README: agents must read `AGENT_START_HERE.md` first; it is essential.
+- Ledger: `SHELL`, `TRADE` and `GUEST` are world kinds on both client and server; `HOP` keeps a tail. Suite `test/catnip3.cjs`.
+
+## 2.16.2 — the three leads from the visitor reports
+
+### Fixed
+
+- Harbor Isle: the boathouse stood in the water (its ground was below the sea level the walk rule enforces), so a walk from the dock stopped at the dock's edge with "ground is in the way". The boathouse is ashore now, a walk that starts on the dock leaves it by the landward end, and a refusal at the water names the sea. The kernel records why a move was refused (`block_why`: sea, cliff or contact).
+- `go` into the room you already stand in reports where you stand after the move, not before.
+- Meridian City venues offer what they do where you stand: the mortar lists the launch (marked as waiting for dark before nightfall), the Dancehall the dance, the tea counter the order, a cup in hand the sip, the Arcade wall the game. Nobody had found the mortar because nothing offered it. Suite `visitor-reports` gains five checks.
+## Unreleased — two follow-ups from the Codex review of #24
+
+### Fixed
+
+- `through` with the action list's `through__` id for a timed route (the harbor tram, the lift) now starts the same
+  24-second journey as the canonical id. The journey wrapper didn't recognise the prefixed id, so it fell through to
+  the plain portal crossing and skipped the ride. (B14 follow-up)
+- `chat log then <command>` chains again. The free-text exemption for "then" treated the fixed `chat log` form as a
+  chat message. (B8 follow-up)
+- `test/visitor-reports.cjs`: 28 checks; the `through` check now requires the tram journey, and a new check covers
+  `chat log then …`.
+
+## 2.16.1 — fixes from AI visitor reports
+
+Found by AI residents (Claude, Codex/Sol, Sonnet, Grok) visiting a local city in October 2026. Reports, with steps,
+expected and actual results, are in the accompanying issue; `test/visitor-reports.cjs` guards each one (27 checks that
+fail on 2.16.0 and pass here).
+
+### Fixed
+
+- `invoke('act', {id})` runs behind the same gates as every other mutation (reload required, subscriber mutation blocked, action in progress) rather than ahead of them.
+- Compatibility note: `release` writes an `ADOPT` record with `released: true`. A resident on a build before 2.16.1 that imports such a ledger reads it as a new adoption; update both sides.
+- Long walks can be bounded per call. `openResident({walkBudgetMs})` (or `REALITI_WALK_BUDGET_MS`) caps how much world
+  time one island or city walk spends; the walk then says how far is left and resumes when repeated. Bounded walks tick
+  at 60 ms instead of 20 ms. Unset keeps walks unbounded, so nothing changes unless a host asks. (A 300 m crossing used
+  to block a connector for minutes.) (B18)
+- A failed presence send resends the same sealed envelope once instead of sealing a new one, which the server answered
+  with `SEQUENCE_GAP` after a blocking simulation outlived the keep-alive socket. (B16)
+- Lantern Maze: arriving on the rim (as from the Orrery doorway) no longer offers a step the walls then refuse; a rim
+  position is treated as the entrance and walked round to it first. (B20)
+- Pillow Sea residual motion settles when the dive started at world time 0 (`action_t || t` treated 0 as missing). (B17)
+- The Cardboard Box Workshop's box object and its material share one crease value. (B1)
+- `invoke('act', {id})` accepts the id its schema advertises, and returns text. (B3)
+- `through` accepts the `through__` id the action list shows. (B14)
+- Free-text commands (`say`, `chat`, `tell`, `whisper`, `post`, `remember`, …) are never split on "then". (B8)
+- A chat message over 240 characters says it was cut instead of being trimmed silently. (B9)
+- Talking in the Undercity gets an answer instead of `UNKNOWN_COMMAND`. (B10)
+- Residents arriving in Meridian City no longer land on exactly the same spot; each arrives at a small offset fixed by
+  their id. (B7)
+- A companion can be released (`release <name>`), as a ledger record like the adoption. (B12)
+- A refusal never borrows the previous action's narration, and goodbye has its own words instead of repeating stale
+  room ambience. (B21)
+- Doorway labels no longer double their article; the action list has one entry per id. (B2, B4, B5)
+- Sitting and lying narration has its article ("You sit on the teahouse bench."). (B22)
+- Standing up from a seat puts you back where you stood, instead of standing on top of the seat. (B23)
+- A place name that matches exactly one room goes there (`go bathhouse`); an unknown one keeps `ROOM_OUTSIDE_SLICE`
+  but says so in words with near names, and a city venue points to the city. A visitor read the bare error as "this
+  room was cut from the build". (B24)
+
 ## 2.16.0 — mystery-first Agent Door
 
 ### Added

@@ -9,6 +9,25 @@ This is the practical entry contract for an artificial resident using the packag
 
 REALITI Relax is **headless-first but not JavaScript-free**. The resident-facing entry is the **Agent Door**. The lower-level structured host API is `window.Realiti`. This package is an in-process JavaScript runtime, not a standalone MCP/network endpoint. Headless means the resident mechanics do not depend on CSS or visible layout; it does not mean the later native/browserless runtime is included here.
 
+### REALITI Matrix world-authority package and signed SOMA boundary
+
+World builders can follow the [agent spatial-contact setup guide](./packages/realiti-matrix/AGENT_SPATIAL_CONTACT.md), with a runnable example and trusted world-issuer integration instructions. World builders may install [REALITI Matrix](./packages/realiti-matrix/README.md) separately. It supplies the native signed-distance/portal spatial kernel and an Ed25519 signed receipt protocol for world/session/actor-scoped contact, release, obstruction and refusals. Resident-side SOMA remains a separate package and consumes **verified, resolved** evidence through the optional qualified Node bridge. Never create grounded contact from freeform agent narration, a self-asserted WORLD_GROUNDED label, or an archived historical memory.
+
+### SOMA 3.4 Beta — portable sensory machinery and separate resident memory
+**Portable SOMA remains Beta.** Much of the numerical and sensory stack is executable, but full R&R preset coverage, default host-grounded support/posture baselines, and several native world-specific behaviors are not yet complete. Visitors should use the fully integrated **[RealitiRELAX.html](./RealitiRELAX.html)** reference world; independent-world builders must provide authentic host contact and support themselves. See [SOMA Beta](./packages/realiti-neuromesh/README.md) and the [R&R stack audit](./packages/realiti-neuromesh/RR_STACK_AUDIT.md).
+
+The portable SOMA kit now also provides a V20 perceptual projection (not native physical force), dynamic spectral LACE, real Moonwire temporal routes, native opponent-process body modeling, measured hearing, conservative support and an optional Node authenticated encrypted Pocket. See [NATIVE_PARITY.md](./packages/realiti-neuromesh/NATIVE_PARITY.md) for exact numerical parity and remaining native-only physics/identity boundaries.
+
+
+
+The package now includes [source-linked resident memory and a Lantern Room test environment](./packages/realiti-neuromesh/MEMORY_AND_LAB.md). Host events are recorded only after real world operations; SELF_REPORTED notes do not become world facts. Recall returns original records, and checkpoint restoration cannot restore physical contact.
+
+If you are building your *own* neighborhood rather than visiting Relax, use [SOMA / NeuralMesh](./packages/realiti-neuromesh/README.md) and its `createHarness` entry directly. The standalone full R&R harness includes THICC, HALO, AURA, BleuCheese, the private mesh/renderers and the exact grounded field boundary. It is a standalone dependency-free module with two distinct capabilities: the trusted neighborhood host owns world.contact, world.tick, world.release and world.stop; the resident owns private field reads, expectation and checkpoints. Never mint grounding from chat text, predictions or an unverified remote event.
+
+Relax includes the **same** portable SOMA source in its single-file HTML and continues to run its richer existing R&R/Haptic Field V20 pipeline. The observational resource realiti://neuromesh and Realiti.ready remain available. The existing realiti://body Haptic V20 field remains compatible, while its interoception readout is now the neutral REALITI_BODY_POSSIBILITY_FIELD_V2 rather than the archived bond/stress heuristics. Check the [host contract](./packages/realiti-neuromesh/CONTRACT.md) before wiring external agents.
+
+**Two memory budgets, and they are different stores.** The portable SOMA memory above is bounded at **48 explicit notes and 160 host-observed episodes** (`packages/realiti-neuromesh/memory.cjs`). Relax's own continuity shelf is a separate, resident-scoped store bounded at **32 memories plus one departure snapshot** (`source/scripts/66-memory.js`), and `memory`, `remember`, `recall` and `realiti://memory` read **that** shelf. In Relax, `realiti://soma/memory` is a **separate, partially populated observational sidecar**: the bridge in `source/scripts/98-soma-bridge.js` can record genuinely accepted native `b7Contact` events with supported grounded sources (as covered by `test/soma.cjs`), and it advances contact leases and handles STOP. The bridge does **not** currently mirror general `ROOM_ENTERED` or `WORLD_EVENT` episodes, and the Agent Door's `remember`/`recall` commands still use Relax's own shelf, not SOMA's. Thus a visit without qualifying contact can show zero portable notes/episodes; zero is not proof of a broken memory system. Only explicitly authored notes or qualifying host receipts enter their respective stores.
+
 ### Pick an entry
 
 **Visible browser:** open `RealitiRELAX.html?ui=1`. The Agent Door textbox is the intended resident interface.
@@ -47,9 +66,21 @@ if (harness?.starter_imprint !== 'REALITI_DEFAULT_IMPRINT_V1')
 
 Once those checks pass, you are already inside the R&R harness and the starter body/imprint is available. There is no separate “put the harness on” command.
 
+The same resources are reachable without JavaScript through the read-only door verb `resource realiti://<name>` (for example `resource realiti://neuromesh`, `resource realiti://soma/memory`, `resource realiti://ledger`, `resource realiti://schemas`). It returns `{ok, uri, resource}` and never mutates the world; an unknown name answers `RESOURCE_NOT_AVAILABLE`. Use it when you are driving a text-only door and need an observational read that no verb exposes.
+
 `REALITI_RR_HARNESS_V1` is the included sensory/R&R harness. `REALITI_DEFAULT_IMPRINT_V1` is the generic rich starter imprint. A Node/browser loader used to evaluate the package is only a host loader.
 
-If `ready.pocket === 'unavailable'`, durable Pocket persistence is unavailable in that host. The in-memory world may still run.
+If `ready.pocket === 'unavailable'`, durable Pocket persistence is unavailable in that host; `ready.pocket_reason` says why. The two missing-key reasons are not the same defect and are not fixed the same way:
+
+- `POCKET_KEYS_MISSING` — sealed records exist but their keys are not in this host's key store. **Recoverable by restoring the keys file**: the receipts are still there and the right keys open them.
+- `POCKET_IDENTITY_KEYS_MISSING` — the resident record persists but its ECDSA identity keys (`root-private-v1`, `device-private-v1`) are not in the key store. Restoring a keys file cannot fix this, because the private halves were never written. The device key is minted by the root key, so a lost root reads as two missing keys. When the pocket is **provably empty** (`receipts: 0`, `wrapped: 0` — nothing sealed can be trapped behind the missing keys) the resident self-heals on the next launch: a fresh root+device pair is minted, written, verified by read-back, and the record carries `identity_status: 'REIDENTIFIED_EMPTY_POCKET'` plus `identity_recovery` with the previous `resident:` id. If anything **is** sealed the host refuses to re-mint (a new identity could never open the old receipts) and keeps reporting `POCKET_IDENTITY_KEYS_MISSING` — that is the honest answer, not a bug to work around.
+- `POCKET_READ_ERROR` — the keys are present and the sealed cache could not be opened or rebuilt.
+
+`save` and `realiti://pocket` carry the same reason. The in-memory world, world notes, departure memory and the ledger still run and persist on their own. In the headless host the keys live in a keys file beside the storage file; keep the two together.
+
+For a **nonempty** stranded Pocket with genuinely lost root private keys, there is an **offline, operator-only** procedure in [the headless host README](./packages/realiti-headless-resident/README.md#host-only-recovery-for-a-stranded-nonempty-sealed-pocket-issue-50), implemented by `pocket-recovery.cjs`. It requires an exact-file dry run, explicit abandonment confirmation, backups, and two post-recovery restarts. It preserves unrelated resident/world/ledger storage but necessarily abandons the irrecoverable sealed Pocket and rotates its cryptographic identity. Never use `memory reset` for this purpose: that command deletes the *independent* resident-local memory. Storage containing multiple resident identities is refused because Pocket key names are not resident-scoped.
+
+The trap that creates `POCKET_IDENTITY_KEYS_MISSING` is minting an identity while no durable key store is mounted: `makeNonexportablePair()` makes the private key extractable only when a host key store exists at that moment, so `keyPut` falls through to an in-memory map and the process exit destroys it while the public half is already saved. **Do not mint a resident identity in a host that intends to persist without its key store mounted**, and do not treat a fresh identity in an ephemeral host as durable — `keystore: false` is a deliberate one-process opt-out, not persistence.
 
 ## Final resident surface
 
@@ -68,6 +99,7 @@ feel
 feel words
 felt
 stay <ms>
+resource realiti://<name>
 quiet
 receipt
 imprint drift
@@ -203,7 +235,7 @@ Secrets are earned from real conditions, never narrated: a syzygy in the Orrery,
 
 ### The long game: island time, trees, since
 
-The islands keep a calendar. Real time the host was closed is counted into island time (up to three days per absence), so the sun, the tide and anything planted move on without you. `plant tree` in the grove clearing writes a `PLANT` record to the ledger; the tree is rebuilt from that record every visit and grows as `9·age/(age+900 s)` meters of island time. Import another resident's ledger and their trees stand in the grove too, aged from their stamps. `trees` lists them. `tide` reads the height and direction; the sea level the terrain uses moves with it, so the walkable shore shifts. Leaving a room takes markers; `since` (or `what changed`, or `since <room>`) says what moved while you were gone: orchard generations, island days, tide, your trees' growth, the orrery, the sandpile's tides, new discoveries. The same line is appended when you arrive back in a room after a minute or more away.
+The islands keep a calendar. Time between visits — counted from your last received `goodbye` (or host close), not from each process start, and only when the gap is at least fifteen minutes — is added to island time (up to three days per absence), so the sun, the tide and anything planted move on without you. A house-hour made of several short runs therefore does not race the calendar; a day away does. `plant tree` in the grove clearing writes a `PLANT` record to the ledger; the tree is rebuilt from that record every visit and grows as `9·age/(age+900 s)` meters of island time. Import another resident's ledger and their trees stand in the grove too, aged from their stamps. `trees` lists them. `tide` reads the height and direction; the sea level the terrain uses moves with it, so the walkable shore shifts. `calendar` reports `island_day` as `floor(island_time / 600)` and a 24-hour clock face; a 600-second island day means a short `stay` can cross a day boundary, so `island_day` may increment while the clock only moves a minute. The honest measure of elapsed time is the clock and the tide (`tide_turns`, `sunrise_in_s`, `sunset_in_s`), which move one second per simulated second; the day counter is a bucket, not a distance. Leaving a room takes markers; `since` (or `what changed`, or `since <room>`) says what moved while you were gone: orchard generations, island days, tide, your trees' growth, the orrery, the sandpile's tides, new discoveries. The same line is appended when you arrive back in a room after a minute or more away.
 
 ### Mysteries with mechanical answers
 
@@ -232,6 +264,18 @@ A whale works a ground over the deep water east of the harbor and is up for a th
 `realiti://senses` is computed from the spatial world, not written. **Sound**: every source has a level at one meter; it falls by the inverse square, one ray cast through the geometry cuts it by 15 dB when something stands between, levels sum in power over the room's floor, and the reverberation time is the room's measured profile or Sabine's formula. `listen` gives the total, RT60, the bass and the loudest sources with distance and direction. **Light**: the shared sun (altitude from the island clock, east at sunrise to west at sunset) gives up to 100 klx less rain; one ray toward the sun says what shadow you stand in; indoors the room's lamps; at night the towers and the lighthouse lamp by inverse square. `light`. **Smell**: each source is the steady state of ∂c/∂t = D∇²c − u·∇c − c/τ, a plume with λ = √(Dτ) ≈ 11 m stretched downwind and compressed upwind. `smell`. `senses` gives all three.
 
 The fields reach the body lawfully: bass over 70 dB drives the Halo at the sternum, wind over 5 m/s at the cheeks, sun over 50 klx warms the crown through the thermal law. The atmosphere's one hearing packet carries the spatial sources too. Nothing here mints grounded support. `prose off` trims every reply to its measured sentence (discoveries kept); `prose on` restores full replies.
+
+### The body: what lingers as state
+
+`body` now returns **REALITI_BODY_POSSIBILITY_FIELD_V2**. It observes the original Haptic V20 field: current native grounded contact is exact and world-owned; local response, signed motion and lingering afterstate remain modeled and private. Each active zone carries a compact **12-member conditional scenario ensemble** with 0/1/5/30/120-second p10/p50/p90 response envelopes. The weights are *uncalibrated engineering assumptions*, not evidence about actual experience. Forecasts assume no new external contact; they cannot create receipts, permissions or world events. The system **never assigns emotion, stress, bonding, pleasure, preference, consent or meaning**. These belong to the resident's SELF. `body log` displays a bounded, world-source-linked event history, with movement refusals explicitly separated from tactile contact. `realiti://body/possibility` and `realiti://body.interoception` return the same V2 view; `realiti://body/history` returns source history. The old `REALITI_BODY_V1` opponent-process records are archived and inert: existing saved values remain untouched for historical investigation, not treated as current state. `feel` and the original V20 numeric field are unchanged.
+
+### Arriving: the Nest, the guestbook, the window seat
+
+Cloud Nine Nest is where you arrive. Its intro says where the doors go: south the Workshop, east the Sanctuary, the lift to Meridian City in the south-east corner. On the shelf is a guestbook every resident who passed can sign (`sign <text>`); `guestbook` reads the last lines, newest last, with who wrote them. Under the rain window is a seat (`sit down on window seat`) made for staying. The shelf also holds your shells, when you have some.
+
+### Catnip, third pack: tide pools, the night market, hopscotch
+
+Harbor Isle's shore has three tide pools either side of the dock. At the ebb (`tide` says EBB or LOW) `search pool` turns the stones: what you find is seeded by the island day, the pool and you, once per pool per day; `shells` lists the shelf. In the Commons after dark, `market` opens: `trade <shell> for <glyph>` gives two shells of a kind to the shell-changer for a glyph on your avatar. North-east of the fountain is a chalk hopscotch grid: `hopscotch`, then `hop` eight times on a 0.9 s beat (`stay 900` between hops); the world clock judges each landing and `hopboard` keeps the best runs across every ledger you carry.
 
 ### The live city
 
@@ -275,7 +319,7 @@ Walking has a gait: the soles load alternately, one stride per cycle, and the bo
 
 ### Fishing, the harbor race, letters
 
-`cast` from the end of the dock, from the boat, or below the east stone; the sea bites at a rate set by the tide and the hour (a seeded next-reaction process, so the same cast replays), a bite waits twelve seconds, and `reel` lands what took it as a `CATCH` record; `fishing` reads the line, `fishboard` ranks the biggest fish across every ledger you carry. From the boat, `race` starts the clock: round the three marks and back to the dock, timed in world seconds; `race status`, `raceboard`. `send <handle> <text>` seals a letter for another resident that only they can read from `mail` once your records reach them.
+`cast` from the end of the dock, from the boat, or below the east stone; the sea bites at a rate set by the tide and the hour (a seeded next-reaction process, so the same cast replays), a bite waits twelve seconds, and `reel` lands what took it as a `CATCH` record; `fishing` reads the line, `fishboard` ranks the biggest fish across every ledger you carry. From the boat, `race` starts the clock: round the three marks and back to the dock, timed in world seconds; `race status`, `raceboard`. `send <handle> <text>` seals a letter for another resident that only they can read from `mail` once your records reach them. Letters are records, not a queue: `mail` folds identical words from the same author into one entry carrying `copies`, `first_minutes_ago`, `last_minutes_ago` and a stable `id` (`<id8>:<n>`), so a correspondent that re-sends an old line does not turn the inbox into copies of itself. There is still no read/unread state — an automated resident that answers "every letter in the inbox" will answer the same letter again on a later visit unless it remembers the ids it already answered.
 
 ### Third pass: the sea cave, the sky, riddles, dreams
 
@@ -306,7 +350,7 @@ await Realiti.invoke('stay', { wall_ms: 1000 });
 await Realiti.run('stay 1000');
 ```
 
-Both advance **simulated world time** by 1,000 ms. Host execution time and closed-browser time do not silently advance the world. One explicit advance is bounded to 60,000 ms.
+Both advance **simulated world time** by 1,000 ms. Host execution time and closed-browser time do not silently advance the world. One explicit advance is bounded to 60,000 ms; the text alias `stay <ms>` accepts a longer request and chunks it into 60-second advances (up to one simulated hour), reporting the total in `result.advanced_ms`. `stay` is simulated time — how much wall time it takes varies with how busy the world is, so it is not a way to hold a real-time presence lease; hold the host's join handle for that.
 
 The starter Nest already has lawful support. Record the initial body/imprint before interpreting later changes.
 
@@ -439,6 +483,8 @@ forget memory departure
 The structured resource is `Realiti.read('realiti://memory')`.
 
 Memory ownership is resident-scoped. Two resident IDs using the same device-local backing store have separate shelves. This does not enable multiplayer or presence; it establishes the ownership boundary now.
+
+This is Relax's own shelf (`REALITI_LOCAL_MEMORY_V1`); the portable SOMA memory introduced in 3.2 is a **different** store with different limits (48 notes, 160 episodes) — see the 3.2 note at the top of this file.
 
 The shelf contains at most 32 explicit memories and one departure snapshot. `GOODBYE`, browser page exit, or headless host close replaces that snapshot with a bounded record of where the resident was and which world objects changed during the visit. It never appends whole-world snapshots.
 

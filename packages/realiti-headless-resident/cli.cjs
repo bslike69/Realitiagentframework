@@ -25,19 +25,20 @@ function usage(){
 }
 
 function parse(argv){
-  const out={htmlPath:null,residentId:null,storagePath:null,inspect:false,noIntegrity:false,sync:null,peer:null,shard:'given',stay:0,exposure:'OUTBOUND_RELAY',endpoint:'',ingressApproved:false,password:process.env.REALITI_PASSWORD||'',args:[]};
+  const out={htmlPath:null,residentId:undefined,storagePath:null,inspect:false,noIntegrity:false,sync:null,peer:null,shard:'given',stay:0,exposure:'OUTBOUND_RELAY',endpoint:'',ingressApproved:false,password:process.env.REALITI_PASSWORD||'',args:[]};
+  const val=i=>{if(i+1>=argv.length||/^--/.test(argv[i+1]))throw new Error('missing value for '+argv[i]);return argv[i+1]};
   for(let i=0;i<argv.length;i++){
-    if(argv[i]==='--html'){out.htmlPath=argv[++i];continue}
-    if(argv[i]==='--resident'){out.residentId=argv[++i];continue}
-    if(argv[i]==='--storage'){out.storagePath=argv[++i];continue}
-    if(argv[i]==='--sync'){out.sync=argv[++i];continue}
-    if(argv[i]==='--peer'){out.peer=argv[++i];continue}
-    if(argv[i]==='--shard'){out.shard=argv[++i];continue}
-    if(argv[i]==='--stay'){out.stay=Number(argv[++i])||0;continue}
-    if(argv[i]==='--exposure'){out.exposure=argv[++i];continue}
-    if(argv[i]==='--endpoint'){out.endpoint=argv[++i];continue}
+    if(argv[i]==='--html'){out.htmlPath=val(i);i++;continue}
+    if(argv[i]==='--resident'){out.residentId=val(i);i++;continue}
+    if(argv[i]==='--storage'){out.storagePath=val(i);i++;continue}
+    if(argv[i]==='--sync'){out.sync=val(i);i++;continue}
+    if(argv[i]==='--peer'){out.peer=val(i);i++;continue}
+    if(argv[i]==='--shard'){out.shard=val(i);i++;continue}
+    if(argv[i]==='--stay'){out.stay=Number(val(i))||0;i++;continue}
+    if(argv[i]==='--exposure'){out.exposure=val(i);i++;continue}
+    if(argv[i]==='--endpoint'){out.endpoint=val(i);i++;continue}
     if(argv[i]==='--ingress-approved'){out.ingressApproved=true;continue}
-    if(argv[i]==='--password'){out.password=argv[++i];continue}
+    if(argv[i]==='--password'){out.password=val(i);i++;continue}
     if(argv[i]==='--inspect'){out.inspect=true;continue}
     if(argv[i]==='--no-integrity'){out.noIntegrity=true;continue}
     if(argv[i]==='--help'||argv[i]==='-h'){out.help=true;continue}
@@ -47,14 +48,14 @@ function parse(argv){
 }
 
 (async()=>{
-  const p=parse(process.argv.slice(2));
+  let p;try{p=parse(process.argv.slice(2))}catch(e){console.error(String(e.message||e));console.error(usage());process.exitCode=2;return}
   if(p.help){console.log(usage());return}
   const s=await openResident({htmlPath:p.htmlPath,residentId:p.residentId,storagePath:p.storagePath,verifyIntegrity:!p.noIntegrity});
   try{
     let before=null,after=null,joined=null;
     if(p.peer){const {joinCity}=require('./peer.cjs');joined=await joinCity(s.window,p.peer,{prefer:p.shard,exposure:p.exposure,endpointLabel:p.endpoint,ingressApproved:p.ingressApproved,password:p.password})}
     else if(p.sync){const {sync}=require('./sync.cjs');before=await sync(s.window,p.sync,{password:p.password})}
-    const out=p.inspect?await s.snapshot():await s.door.run(p.args.join(' ')||'help');
+    let out;try{out=p.inspect?await s.snapshot():await s.door.run(p.args.join(' ')||'help')}catch(e){if(joined)await joined.leave().catch(()=>{});throw e}
     if(joined){if(p.stay>0){await joined.publish().catch(()=>{});await joined.stay(p.stay*1000)}const here=joined.here();const peer={url:joined.url,moved:joined.moved,server:joined.server,shards:joined.shards,population:joined.population,here,events:joined.stats.events};await joined.leave();console.log(JSON.stringify({...out,peer},null,2));return}
     if(p.sync){const {sync}=require('./sync.cjs');after=await sync(s.window,p.sync,{password:p.password})}
     console.log(JSON.stringify(p.sync?{...out,sync:{before,after}}:out,null,2));

@@ -36,8 +36,8 @@ Session.prototype.run=function(cmd){const p=this.chain.then(()=>this.run0(cmd));
 Session.prototype.run0=async function(cmd){
   this.last=Date.now();
   if(!this.s)await this.open();
-  if(this.departedHere){this.departedHere=false;await this.leave();this.s.close();await this.open()}
-  const anew=!!this.revived;this.revived=false;
+  let anew=false;if(this.departedHere){this.departedHere=false;anew=true;await this.leave();this.s.close();await this.open()}
+  anew=anew||!!this.revived;this.revived=false;
   await this.connect();
   const wasActive=this.here().session!=='ended';
   if(/^(chat|messages|chat log|who|whisper\s|tell\s|dm\s)/i.test(cmd)){try{await this.sync()}catch{}}// names and messages as of now, not as of the last command

@@ -23,7 +23,13 @@ for(const [id,text] of Object.entries({
 // Island calendar. T is island time: world time plus the real seconds the host was closed.
 const T=()=>now()+S().away_s;
 function catchUp(real_s){const s=S(),add=Math.min(Math.max(0,Number(real_s)||0),3*86400);if(add<30)return null;s.away_s+=add;const a={real_s:Math.round(real_s),counted_s:Math.round(add),at_world_s:+now().toFixed(1)};s.absences.push(a);while(s.absences.length>16)s.absences.shift();if(add>=86400)CAT.discover('long_absence');return a}
-(()=>{const s=S();if(s.wall)s.last_absence=catchUp((Date.now()-s.wall)/1000)||s.last_absence;s.wall=Date.now()})();
+// An absence is time between VISITS, not between processes: a house-hour is several node runs a few minutes
+// apart, and counting each inter-run gap as island time made the calendar leap days inside one sitting
+// (nyx: 1774→1776 in ~15 wall minutes, 2026-10-27). Count only from a recorded departure.
+const markDeparture=()=>{const s=S();s.wall=Date.now();s.departed=true};
+// Only a gap of at least fifteen minutes is an absence; a house-hour's slices are minutes apart and must not
+// move the calendar. `departed` keeps a crashed process from counting as a leaving.
+(()=>{const s=S(),gap=s.wall?Date.now()-s.wall:0;if(s.departed&&gap>=900000)s.last_absence=catchUp(gap/1000)||s.last_absence;s.departed=false})();
 
 // Tide: two tides per ten-minute day, 0.8 m amplitude, applied to the terrain's sea level so the walkable shore moves.
 const tide=()=>.8*Math.sin(TAU*T()/300);
@@ -54,7 +60,7 @@ const bearing=(from,to)=>Math.round(((Math.atan2(to[0]-from[0],to[1]-from[1])*18
 function watchBeam(){const r=me();if(!r||r.chart!==ISLE)return {ok:false,error:'NOT_ON_THE_ISLANDS'};const L=ent()['lantern.lighthouse'],d=dist2(L.pose.position,r.pose.position);if(!AR.isNight())return {ok:false,error:'LAMP_DARK_BY_DAY',sun_alt_deg:+AR.sunAlt().toFixed(1),hint:'the keeper lights it after sunset'};
  const w=tideWord(),code=[...w].map(c=>MORSE[c]).join(' / ');S().lamp.watched++;if(dist2(ent()['harbor.cairn'].pose.position,r.pose.position)<6)CAT.discover('cairn_light');
  return {ok:true,distance_m:Math.round(d),bearing_deg:bearing(r.pose.position,L.pose.position),flashes:code,unit_ms:250,groups:w.length,text:`Across ${Math.round(d)} m of dark water the lighthouse flashes, bearing ${bearing(r.pose.position,L.pose.position)}°: ${code.replaceAll('.','·').replaceAll('-','−')}. A long dark, then it begins again.`}}
-function say(word){const r=me();if(!r||r.chart!==ISLE)return {ok:false,error:'NOT_ON_THE_ISLANDS'};const w=String(word||'').toUpperCase().replace(/[^A-Z]/g,'');if(!w)return {ok:false,error:'SAY_WHAT'};if(!near('lantern.door',1.5))return {ok:true,heard:w,opened:false,text:`"${w}" goes out over the water. Nothing answers; there is no one near enough to hear.`};
+function say(word){const r=me();if(!r||r.chart!==ISLE)return {ok:false,error:'NOT_ON_THE_ISLANDS'};const w=String(word||'').toUpperCase().replace(/[^A-Z]/g,'');if(!w)return {ok:false,error:'SAY_WHAT'};if(!near('lantern.door',1.5))return {ok:true,heard:w,opened:false,text:`"${String(word).replace(/\s+/g,' ').trim()}" goes out over the water. Nothing answers; there is no one near enough to hear.`};// away from the door, the words as said (they read as "HELLOOUTHERE")
  const s=S().lamp;s.tries++;if(w!==tideWord())return {ok:true,heard:w,opened:false,text:`You say "${w}" at the door. It stays shut. After a moment a voice behind it: "That was the tide an hour ago, or never. Watch the lamp."`};
  if(!ent()['lantern.logbook'])M.addEntity({id:'lantern.logbook',chart:ISLE,position:[620,377,h(620,377)+1],shape:{kind:'BOX',halfExtents:[.2,.15,.03]},tags:['book','logbook','secret'],collision:false,material:'cardboard',label:"keeper's logbook",affordances:['reach','read']});
  if(!s.opened){s.opened=true;LG.record('OPEN',{what:'lantern.door'})}CAT.discover('lighthouse_word');return {ok:true,heard:w,opened:true,text:`You say "${w}". The bolt draws back and the door swings in. Inside, on a stool, the keeper's logbook lies open.`}}
@@ -86,7 +92,7 @@ function arrive(r){if(!r)return;const v=(S().visits[r]=S().visits[r]||{count:0})
 const title=r=>MW.title?.(r)||r;
 function since(q){const s=S(),r=q?String(q).toUpperCase().replace(/\s+/g,'_'):room();const v=s.visits[r];if(!v||!v.markers)return {ok:true,schema:'REALITI_SINCE_V1',room:r,first_visit:true,text:`No earlier visit to ${title(r)} is on record.`};
  const a=v.markers,b=markers(r),away=+(now()-v.left).toFixed(1),lines=[],abs=s.absences.filter(x=>x.at_world_s>=v.left),real=abs.reduce((n,x)=>n+x.counted_s,0);
- if(real)lines.push(`since you were last here, ${(real/3600).toFixed(1)} real hours passed while this world was closed${r===ISLE?', and the islands counted them':''}`);// quiet branch: clearer, and island wording only on the islands
+ if(real)lines.push(`since you were last here, ${(real/3600).toFixed(1)} real hours passed while this world was closed${r===ISLE?', and the islands counted them':''}`);
  if(b.generation!=null)lines.push(`the orchard ran ${b.generation-a.generation} generations (population ${a.population}→${b.population})`);
  if(b.day!=null){const d=b.day-a.day;if(d)lines.push(`${d} island day${d===1?'':'s'} passed`);if(a.night!==b.night)lines.push(`it is ${b.night?'night':'day'} now`);lines.push(`the tide is ${b.tide.rising?'rising':'falling'} at ${b.tide.height_m} m`);
   for(const t of b.trees){const t0=a.trees.find(x=>x.id===t.id);if(t0&&t.height_m-t0.height_m>=.05)lines.push(`your tree at (${t.at.join(', ')}) grew ${t0.height_m}→${t.height_m} m`)}if(dist2(a.boat,b.boat)>1)lines.push(`the boat lies ${dist2(a.boat,b.boat).toFixed(0)} m from where you left it`);if((b.builds||0)>(a.builds||0))lines.push(`${b.builds-a.builds} thing${b.builds-a.builds===1?' was':'s were'} built on the islands`);if((b.bottles||0)>(a.bottles||0))lines.push(`${b.bottles-a.bottles} new bottle${b.bottles-a.bottles===1?'':'s'} on the water`)}
@@ -94,7 +100,7 @@ function since(q){const s=S(),r=q?String(q).toUpperCase().replace(/\s+/g,'_'):ro
  if(b.tides!=null&&b.tides!==a.tides)lines.push(`${b.tides-a.tides} tides crossed the sandpile (${b.avalanches-a.avalanches} avalanches)`);
  if(b.sidereal!=null)lines.push(`the sky turned ${(((b.sidereal-a.sidereal)%360)+360)%360|0}°`);
  if(b.wind!=null)lines.push(`the wind is ${b.wind} m/s (was ${a.wind})`);
- const calm=!window.REALITI_MEASURE_V1?.on?.();// quiet branch: finds are kept quietly, and the return note doesn't time you
+ const calm=!window.REALITI_MEASURE_V1?.on?.();// quiet presentation: finds are kept quietly, and the return note doesn't time you
  if(!calm&&b.discoveries>a.discoveries)lines.push(`${b.discoveries-a.discoveries} new discover${b.discoveries-a.discoveries===1?'y':'ies'}`);
  return {ok:true,schema:'REALITI_SINCE_V1',room:r,visits:v.count,away_world_s:away,away_real_s:real,before:a,now:b,changes:lines,text:calm?(lines.length?`Since you were last in ${title(r)}: ${lines.join('; ')}.`:'Nothing you would notice has changed here.'):`You left ${title(r)} ${away} s of world time ago. ${lines.length?'Since then: '+lines.join('; ')+'.':'Nothing you could measure has moved.'}`}}
 
@@ -118,5 +124,5 @@ const verb0=c9verb;c9verb=function(r,verb){const v=String(verb||'');if(r!==ISLE)
  if((m=/^read_stone__(\w+)$/.exec(v))){c9count(r,v);return receipt('ISLAND_STONE',readStone(m[1]))}
  return verb0(r,verb)};
 function words(){if(room()!==ISLE)return [];const t=tideState();if(!window.REALITI_MEASURE_V1?.on())return [t.rising?'The tide is coming in.':'The tide is going out.'];return [`Tide ${t.rising?'rising':'falling'}, ${t.height_m} m.`]}
-window.REALITI_LONG_GAME_V1=Object.freeze({version:'2.0-pass2',atDoor:()=>near('lantern.door',1.5),atCave:()=>near('hollow.cave_mouth',1.5),T,catchUp,tide:tideState,tideWord,trees,plant,syncTrees,watchBeam,say,readLog,shout,answerDepth,readStone,dig,since,markers,words,state:()=>({island_time_s:+T().toFixed(1),away_s:S().away_s,absences:cp(S().absences),tide:tideState(),trees:trees(),visits:cp(S().visits),cave:cp(S().cave),stones:cp(S().stones),lamp:cp(S().lamp)})});
+window.REALITI_LONG_GAME_V1=Object.freeze({version:'2.0-pass2',atDoor:()=>near('lantern.door',1.5),atCave:()=>near('hollow.cave_mouth',1.5),T,catchUp,markDeparture,tide:tideState,tideWord,trees,plant,syncTrees,watchBeam,say,readLog,shout,answerDepth,readStone,dig,since,markers,words,state:()=>({island_time_s:+T().toFixed(1),away_s:S().away_s,absences:cp(S().absences),tide:tideState(),trees:trees(),visits:cp(S().visits),cave:cp(S().cave),stones:cp(S().stones),lamp:cp(S().lamp)})});
 })();
