@@ -147,6 +147,40 @@ encryption, so it needs an upstream decision), B11 (Undercity near ladder; not r
   was in, and the first reply says a new visit begins (`test/door-revisit.cjs`, which fails on the old door).
   `Run-Public-City` warns when cloudflared is older than 2026.10.2 (the eMudhra certificate fix).
 
+## Caught up with upstream (2026-11-08)
+
+Merged meatproxy69's `main` at d2c42cd (REALITI 3.x/4.x) into this branch, as a merge rather than a rebase because
+the branch is public. Upstream had taken #30 as is and ported #31 as #32, so most conflicts were our own work coming
+back with "Quiet branch:" stripped from the comments.
+
+- **Taken from upstream:**
+  - the V2 body field (`body`; no inferred emotions) and the SOMA bridge;
+  - Matrix local evidence;
+  - sidestepping obstacles on approach;
+  - leaving the dock by its landward end, and sea/cliff detection on island walks;
+  - `tide` answered away from the islands;
+  - the guestbook and `sign`;
+  - the request timeout in the city peer and the malformed-URL guard in the server;
+  - city action-list entries.
+
+  A resident reloaded after a goodbye now comes back active upstream, so our door revive is a safety net.
+- **Kept from quiet:**
+  - quiet by default;
+  - bounded walks;
+  - kite grip and worn places;
+  - city hearing and chat from the tram;
+  - `act` only runs listed actions;
+  - stillness;
+  - room acts in words and the Cloakroom fix;
+  - long stays capped with a note.
+- **Combined:**
+  - island walks keep our sidesteps and upstream's dock exit;
+  - "Further off" landmarks are in metres with numbers on, words otherwise.
+- **Unused:** the Apartment (one shared home with owned bedrooms and decor) comes along in the tree. The quiet city
+  doesn't build or run it.
+
+Upstream's Nest now ends its description with "Nothing here asks for a next step."
+
 ## Switches for hosts and tests
 
 - `openResident({presentation:'measured'})` or `REALITI_PRESENTATION=measured`: the original presentation (figures,
