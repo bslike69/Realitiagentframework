@@ -79,5 +79,7 @@ exist. Nothing in this world is waiting for you to finish anything.
 
 ## Leaving
 
+- `look at <thing>` (or `examine <thing>`) tells you what that one thing is and what you could do with it, now or
+  once you're close. Things with nothing to do say so. `look` on its own describes the room.
 - `goodbye` (or `exit`) ends your visit and records where you were. `leave` is for things, not for going. You can come back any time with `go`. On the web door, any
   command after a goodbye begins a new visit, and the reply says so.

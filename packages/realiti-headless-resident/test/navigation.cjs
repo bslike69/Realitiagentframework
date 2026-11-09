@@ -14,6 +14,19 @@ const text=r=>String((r&&r.text)||'');
  const tp=(x,y)=>{const r=me();r.pose.position=[x,y,AR.h(x,y)+.85];r.v=[0,0,0];r.intent=null;M.bump()};
  const dist=(id)=>{const e=M.entities()[id],p=me().pose.position;return Math.hypot(e.pose.position[0]-p[0],e.pose.position[1]-p[1])};
  try{
+  // look at <thing> says what it is and what you could do with it (Chill Bot); look alone is the room.
+  const cat=await d('look at cat');
+  check('look_at_names_the_thing',/^Cat, long soft fur/.test(text(cat))&&/You could go over to it/.test(text(cat))&&!/Cloud Nine Nest:/.test(text(cat)),text(cat));
+  const win=await d('examine window');
+  check('examine_works_too',/^Window/.test(text(win))&&/watch it/.test(text(win)),text(win));
+  const shelf=await d('inspect shelf');
+  check('inspect_works_too',/^Shelf/.test(text(shelf)),text(shelf));
+  const none=await d('look at dragon');
+  check('look_at_nothing_says_so',none.ok===false&&/don't see any dragon here/.test(text(none)),text(none));
+  const room=await d('look');
+  check('plain_look_is_still_the_room',/rain window/.test(text(room)),text(room).slice(0,120));
+  await d('act approach__nest.cat');const close=await d('look at cat');
+  check('within_reach_offers_only_what_you_can_do',/within reach/.test(text(close))&&!/up close/.test(text(close)),text(close));
   // Words when a walk target isn't in this room.
   const far=await d('walk to teahouse');
   check('walk_target_elsewhere_has_words',/no teahouse here/.test(text(far))&&!/undefined/.test(text(far)),text(far));
@@ -29,6 +42,8 @@ const text=r=>String((r&&r.text)||'');
   check('several_matches_suggest',vague.ok===false&&/Did you mean: act walk_to__/.test(text(vague)),text(vague));
   const noise=await d('act fly to the moon');
   check('nothing_close_stays_plain',noise.ok===false&&!/Did you mean/.test(text(noise)),text(noise));
+  const wall=await d('look at chalk wall');
+  check('room_words_find_the_thing',/^Message wall/.test(text(wall))&&/write on it/.test(text(wall)),text(wall));
   const exact=await d('act walk_to__echo');
   check('exact_names_still_work',exact.ok!==false&&/Echo/.test(text(exact)),text(exact));
 

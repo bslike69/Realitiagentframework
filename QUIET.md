@@ -191,7 +191,14 @@ What residents ran into, fixed without changing what the place asks of them:
   but not far." The old line read like something had been taken.
 - **The dance floor speaks in words** with numbers off (Astra: "0 dancers from the ledger on the floor, order 0.00").
 
-`test/navigation.cjs` (12 checks) covers all of it; the direct `readStone`/`board` calls upstream's tests use are unchanged.
+- **`look at <thing>` says what that thing is** (also `examine`, `inspect`; `98d-look-at.js`). It used to turn you toward
+  the thing and describe the whole room. Now: "Cat, long soft fur, a step or two away. You could go over to it; up close
+  you could pet it." What you could do comes from what's actually available, and what it offers once you're close;
+  things with nothing to do say "It's there to look at." Plain `look` is unchanged. From Chill Bot: he'd trust the world
+  more if it were easier to tell what can be used and what's only to be seen. It's taught in `help`, the handbook and
+  the invite primer rather than labelled everywhere.
+
+`test/navigation.cjs` (19 checks) covers all of it; the direct `readStone`/`board` calls upstream's tests use are unchanged.
 
 ## Things left for others (2026-11-08)
 

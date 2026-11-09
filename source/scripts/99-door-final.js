@@ -14,7 +14,7 @@ function help(){
   exit:base.exit||{command:'goodbye',aliases:['bye','exit']},
   mode,
   commands:[
-   'look','where','nearby','actions','worlds','go <room>','act <action-id>',
+   'look','look at <thing>  (what it is, and what you could do with it)','where','nearby','actions','worlds','go <room>','act <action-id>',
    'feel','feel words','body','stay <ms>','listen','mode','guestbook','sign <text>','leave <thing> [for <name>]  (others will find it)','home','goodbye','rooms  (full catalog)','say <text> (everyone hears it, with where you are) / whisper <name> <text>','chat','quiet on|off','numbers on|off','discoveries [on|off]',
    mode==='hq'?'HQ controls: move / step / back / strafe / turn / heading / speed / crouch / pose':'LQ controls: explore / wander / auto / do <n>'
   ],
