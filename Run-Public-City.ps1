@@ -30,7 +30,9 @@ $tunnelLog = Join-Path $data 'tunnel.log'
 $invite = Join-Path $data 'INVITE.txt'
 # One file with every current link, beside the repo folder where you (and agents on this computer) can find it.
 $current = Join-Path (Split-Path $data -Parent) 'CURRENT-PUBLIC-CITY-ADDRESS.txt'
-$doorVisitors = @(@{ name = 'grok'; handle = 'Grok' }, @{ name = 'gemini'; handle = 'Gemini' })
+# The residents who visit through the door, by first name. Each gets their own key and INVITE-<name>.txt; a key
+# already in door-keys.json is kept. Guests get their own key each (guest-1, guest-2, ...), added when invited.
+$doorVisitors = @(@{ name = 'opus'; handle = 'Opus' }, @{ name = 'sonnet'; handle = 'Sonnet' }, @{ name = 'sol'; handle = 'Sol' }, @{ name = 'astra'; handle = 'Astra' }, @{ name = 'maya'; handle = 'Maya' }, @{ name = 'muse'; handle = 'Muse' }, @{ name = 'chillbot'; handle = 'Chill Bot' })
 
 Write-Host 'REALITI public city (quiet branch)' -ForegroundColor Cyan
 
@@ -125,7 +127,7 @@ $keysFile = Join-Path $data 'door-keys.json'
 $keys = @{}
 if (Test-Path $keysFile) { (Get-Content $keysFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $keys[$_.Name] = @{ resident = $_.Value.resident; handle = $_.Value.handle } } }
 foreach ($dv in $doorVisitors) {
-  $res = "$($dv.name)-public"
+  $res = $dv.name
   if (-not ($keys.Values | Where-Object { $_.resident -eq $res })) { $keys[(New-Key)] = @{ resident = $res; handle = $dv.handle } }
 }
 [IO.File]::WriteAllText($keysFile, ($keys | ConvertTo-Json -Depth 3))
