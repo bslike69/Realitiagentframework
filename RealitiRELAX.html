@@ -9696,7 +9696,7 @@ const isleTarget=id=>{const i=ISLANDS.find(x=>x.id===id);return i?[i.c[0],i.c[1]
 const verb0=c9verb;c9verb=function(r,verb){const v=String(verb||'');if(r!==ISLE)return verb0(r,verb);let m;
  if(v==='island_map'){c9count(r,v);const rows=mapText();return receipt('ISLAND_MAP',rows.join('\n')+`\n@ you · ~ sea · . shore · : land · ^ high · d dock · L lighthouse · C cave · s stones · g grove · blank: not yet seen · north is up · ${S().seen.length} of ${GRID*GRID} cells seen`,{map:rows,seen:S().seen.length})}
  if(v==='read_weather'){c9count(r,v);return receipt('ISLAND_WEATHER',words()[0],state())}
- if(v==='board_boat'){c9count(r,v);const res=board();return receipt('ISLAND_BOAT',res.ok?'You step down into the boat; it rocks, then settles under you. Row toward an island or a landmark.':res.error==='BOAT_OUT_OF_REACH'?`The boat is ${Math.round(res.distance_m)} m away; walk to boat first.`:`You cannot board: ${res.error}.`,res)}
+ if(v==='board_boat'){c9count(r,v);let res=board();if(res.error==='BOAT_OUT_OF_REACH'){let w=null;try{w=walkTo('harbor.boat')}catch(e){}if(w&&w.ok&&w.arrived)res=board();else if(w&&w.ok)return receipt('ISLAND_BOAT',`You walk toward the boat; it is still ${w.distance_m>30?'a walk':'a few steps'} away. Board it again to go on.`,{ok:false,error:'BOAT_OUT_OF_REACH',walked:w})}return receipt('ISLAND_BOAT',res.ok?'You step down into the boat; it rocks, then settles under you. Row toward an island or a landmark.':res.error==='BOAT_OUT_OF_REACH'?`The boat is ${Math.round(res.distance_m)} m away; walk to boat first.`:`You cannot board: ${res.error}.`,res)}
  if(v==='land_boat'){c9count(r,v);const res=land();return receipt('ISLAND_BOAT',res.ok?`You pull the boat up and step onto ${res.landed_on}.`:`You cannot land here: ${res.error}.`,res)}
  if((m=/^walk_to__([\w.]+)$/.exec(v))){c9count(r,v);const i=ISLANDS.find(x=>x.id===m[1]);const res=walkTo(i?LAND.find(l=>l[0].startsWith(i.id+'.'))?.[0]||m[1]:m[1]);return receipt('ISLAND_WALK',res.ok?`You walk ${res.walked_m} m toward ${res.entity_label}${res.arrived?' and reach it':res.why?`; ${res.why} is in the way${res.why==='the sea'?' (you need the boat)':''}`:res.partial?`; ${res.distance_m} m still to go (do this again to go on)`:`; it is ${res.distance_m} m further`}. You are on ${res.on}.`:(res.text||`You cannot walk there: ${res.error}.`),res)}
  if((m=/^row_to__(\w+)$/.exec(v))){c9count(r,v);if(!boat().aboard){const E=M.entities()['harbor.boat'],me0=me(),d=E&&me0?Math.round(Math.hypot(E.pose.position[0]-me0.pose.position[0],E.pose.position[1]-me0.pose.position[1])):null;return receipt('ISLAND_ROW',`You are not in the boat. It is ${d==null?'somewhere on the water':d<=3?'right here':`${d} m away`}; ${d!=null&&d<=40?'board boat, then row.':'walk to boat, board boat, then row.'}`,{ok:false,error:'NOT_ABOARD',boat_m:d})}const res=row(isleTarget(m[1]));return receipt('ISLAND_ROW',res.ok?`You row ${res.rowed_m} m. ${res.ashore?`The keel grinds on the shore of ${res.at}; land to step ashore.`:`You are on ${res.at==='open water'?'open water':`the water off ${res.at}`}, ${res.remaining_m} m to go${res.partial?' (row again to go on)':''}.`}`:`You cannot row: ${res.error}.`,res)}
@@ -9780,10 +9780,13 @@ function answerDepth(m){const x=Number(m);if(!Number.isFinite(x))return {ok:fals
 
 // Three Stones: each stone is carved with its distance in paces to the buried lens. Dig within two meters of it.
 const LENS=[396,-571],PACE=.75;
-function readStone(which){const k=String(which||'').toLowerCase().trim(),id=`stones.${k}`,e=ent()[id];if(!e||!['north','east','west'].includes(k))return {ok:false,error:'WHICH_STONE',stones:['north','east','west']};if(!near(id,1.2))return {ok:false,error:'STAND_AT_THE_STONE'};const d=dist2(e.pose.position,LENS)/PACE;S().stones.read[k]=true;return {ok:true,stone:k,paces:Math.round(d),text:`Carved into the ${k} stone, worn but legible: "${Math.round(d)} paces".`}}
+function readStone(which){const k=String(which||'').toLowerCase().trim(),id=`stones.${k}`,e=ent()[id];if(!e||!['north','east','west'].includes(k))return {ok:false,error:'WHICH_STONE',stones:['north','east','west']};if(!near(id,1.2))return {ok:false,error:'STAND_AT_THE_STONE'};const d=dist2(e.pose.position,LENS)/PACE;S().stones.read[k]=true;return {ok:true,stone:k,paces:Math.round(d),text:`Carved into the ${k} stone, worn but legible: "${Math.round(d)} paces". Beneath it, smaller: "a pace is three quarters of a metre".`}}
+// Quiet branch: reading a stone you can see walks you up to it first (one call, bounded like any walk).
+function readStoneWalking(which){const k=String(which||'').toLowerCase().trim();let res=readStone(k);if(res.error!=='STAND_AT_THE_STONE')return res;const id=`stones.${k}`;let w=null;try{w=AR.walkTo(id)}catch(e){}if(w&&w.ok&&w.arrived){try{MW.op('approach',{target:id})}catch(e){}res=readStone(k)}if(res.ok)return res;
+ return {...res,walked:w,text:w&&w.ok?`You walk toward the ${k} stone; it is still ${w.distance_m>30?'a walk':'a few steps'} off. Read it again to go on.`:`You can't get to the ${k} stone from here.`}}
 function dig(x,y){const r=me();if(!r||r.chart!==ISLE)return {ok:false,error:'NOT_ON_THE_ISLANDS'};let p=[r.pose.position[0],r.pose.position[1]];if(x!==undefined){const q=[Number(x),Number(y)];if(!q.every(Number.isFinite))return {ok:false,error:'DIG_X_Y'};if(dist2(q,p)>3)return {ok:false,error:'DIG_WHERE_YOU_STAND',distance_m:+dist2(q,p).toFixed(1)};p=q}
  if(h(p[0],p[1])<tide())return {ok:false,error:'UNDER_WATER'};const s=S().stones;s.digs++;const d=dist2(p,LENS);if(d<=2){if(!ent()['stones.lens'])M.addEntity({id:'stones.lens',chart:ISLE,position:[p[0],p[1],h(p[0],p[1])+.12],shape:{kind:'SPHERE',radius:.12},tags:['lens','glass','secret'],collision:false,material:'ceramic',label:'the old lens',affordances:['reach']});CAT.discover('buried_lens');LG.record('DIG',{x:+p[0].toFixed(1),y:+p[1].toFixed(1),found:'lens'});return {ok:true,found:'lens',text:'A hand down in the sand meets glass: a lens the size of a plate, wrapped in oilcloth.'}}
- return {ok:true,found:null,text:d<8?'Damp sand, and roots that have grown around something; nothing in this hole.':'Sand, roots, a crab. Nothing.'}}
+ return {ok:true,found:null,text:d<8?'Damp sand, and roots grown around something close by. Not this hole, but not far.':'Sand, roots, a crab. Nothing.'}}
 
 // Since: what moved in a room between leaving it and now. Markers are taken at departure and compared on request.
 function markers(r){const o={discoveries:Object.keys(CAT.found()).length,world_s:+now().toFixed(1)};
@@ -9819,7 +9822,7 @@ const go0=b7AgentGo;b7AgentGo=function(v){const from=room();const r=go0(v);const
 arrive(room());syncTrees();
 const imp0=LG.import;window.REALITI_LEDGER_V1=Object.freeze({...LG,import:p=>{const r=imp0(p);syncTrees();return r}});
 if(C9SCENES[ISLE])C9SCENES[ISLE].intro+=' At night the lighthouse speaks in flashes; the Hollow answers a shout; the Three Stones keep a count; the grove takes seedlings and the calendar keeps running while you are away.';
-const actions0=b4AgentActions;b4AgentActions=function(){const a=actions0();if(room()!==ISLE)return a;if(near('grove.clearing',1))a.push({id:'plant_tree',label:'PLANT A TREE'});if(near('hollow.cave_mouth',1.5))a.push({id:'shout',label:'SHOUT INTO THE CAVE'});if(AR.isNight())a.push({id:'watch_beam',label:'WATCH THE LIGHTHOUSE'});for(const k of ['north','east','west'])if(near(`stones.${k}`,1.2))a.push({id:'read_stone__'+k,label:`READ THE ${k.toUpperCase()} STONE`});if(near('lantern.logbook',1.5))a.push({id:'read_logbook',label:'READ THE LOGBOOK'});a.push({id:'dig_here',label:'DIG HERE'},{id:'read_tide',label:'READ THE TIDE'});return a};
+const actions0=b4AgentActions;b4AgentActions=function(){const a=actions0();if(room()!==ISLE)return a;if(near('grove.clearing',1))a.push({id:'plant_tree',label:'PLANT A TREE'});if(near('hollow.cave_mouth',1.5))a.push({id:'shout',label:'SHOUT INTO THE CAVE'});if(AR.isNight())a.push({id:'watch_beam',label:'WATCH THE LIGHTHOUSE'});for(const k of ['north','east','west'])if(near(`stones.${k}`,90))a.push({id:'read_stone__'+k,label:`READ THE ${k.toUpperCase()} STONE`});if(near('lantern.logbook',1.5))a.push({id:'read_logbook',label:'READ THE LOGBOOK'});a.push({id:'dig_here',label:'DIG HERE'},{id:'read_tide',label:'READ THE TIDE'});return a};
 function receipt(type,res){C9.b4=C9.b4||{};C9.b4.lastReceipt={type,room:room(),narrative:res.text||(res.error?`You cannot: ${res.error}.`:''),...res,law:'island time, tide, echo and stones are world facts; narration reports them'};try{c9save()}catch(e){}return true}
 const verb0=c9verb;c9verb=function(r,verb){const v=String(verb||'');if(r!==ISLE)return verb0(r,verb);let m;
  if(v==='plant_tree'){c9count(r,v);return receipt('ISLAND_PLANT',plant())}
@@ -9828,7 +9831,7 @@ const verb0=c9verb;c9verb=function(r,verb){const v=String(verb||'');if(r!==ISLE)
  if(v==='read_logbook'){c9count(r,v);return receipt('ISLAND_LOG',readLog())}
  if(v==='dig_here'){c9count(r,v);return receipt('ISLAND_DIG',dig())}
  if(v==='read_tide'){c9count(r,v);const t=tideState();return receipt('ISLAND_TIDE',{...t,text:`The tide is ${t.rising?'rising':'falling'}, ${t.height_m} m against the dock pilings; it turns in about ${t.next_turn_s} s.`})}
- if((m=/^read_stone__(\w+)$/.exec(v))){c9count(r,v);return receipt('ISLAND_STONE',readStone(m[1]))}
+ if((m=/^read_stone__(\w+)$/.exec(v))){c9count(r,v);return receipt('ISLAND_STONE',readStoneWalking(m[1]))}
  return verb0(r,verb)};
 function words(){if(room()!==ISLE)return [];const t=tideState();if(!window.REALITI_MEASURE_V1?.on())return [t.rising?'The tide is coming in.':'The tide is going out.'];return [`Tide ${t.rising?'rising':'falling'}, ${t.height_m} m.`]}
 window.REALITI_LONG_GAME_V1=Object.freeze({version:'2.0-pass2',atDoor:()=>near('lantern.door',1.5),atCave:()=>near('hollow.cave_mouth',1.5),T,catchUp,markDeparture,tide:tideState,tideWord,trees,plant,syncTrees,watchBeam,say,readLog,shout,answerDepth,readStone,dig,since,markers,words,state:()=>({island_time_s:+T().toFixed(1),away_s:S().away_s,absences:cp(S().absences),tide:tideState(),trees:trees(),visits:cp(S().visits),cave:cp(S().cave),stones:cp(S().stones),lamp:cp(S().lamp)})});
@@ -12233,7 +12236,7 @@ door.run=async function(raw){
  if(AR&&C9?.currentRoom===AR.chart){const reply=(res,text)=>({ok:res.ok!==false,...(res.error?{error:res.error}:{}),schema:'REALITI_ISLAND_RESULT_V1',result:res,text:[text,...(window.REALITI_CATNIP_V1?.drain?.()||[]).map(d=>(d.plain?d.text:'✦ Discovery: '+d.text))].filter(Boolean).join(' '),weather:AR.words()[0]||null,here:whereText(),felt:{grounded_zones:(R.read('realiti://body')?.field?.f?.at(-1)?.m||[]).filter(x=>x===1).length}});
   if(l==='map'||l==='island map')return door.run('act island_map');
   if(l==='weather'||l==='read weather')return door.run('act read_weather');
-  if(l==='board boat'||l==='board the boat'||l==='get in the boat'){const res=AR.board();return reply(res,res.ok?'You step down into the boat; it rocks, then settles under you.':res.error==='BOAT_OUT_OF_REACH'?`The boat is ${Math.round(res.distance_m)} m away; walk to boat first.`:`You cannot board: ${res.error}.`)}
+  if(l==='board boat'||l==='board the boat'||l==='get in the boat'){let res=AR.board();if(res.error==='BOAT_OUT_OF_REACH'){let w=null;try{w=AR.walkTo('harbor.boat')}catch(e){}if(w&&w.ok&&w.arrived)res=AR.board();else if(w&&w.ok)return reply({...res,walked:w},`You walk toward the boat; it is still ${w.distance_m>30?'a walk':'a few steps'} away. Board it again to go on.`)}/* quiet branch: boarding walks you to the boat, like reading a stone */return reply(res,res.ok?'You step down into the boat; it rocks, then settles under you.':res.error==='BOAT_OUT_OF_REACH'?`The boat is ${Math.round(res.distance_m)} m away; walk to boat first.`:`You cannot board: ${res.error}.`)}
   if(l==='land'||l==='land the boat'||l==='go ashore'){const res=AR.land();return reply(res,res.ok?`You pull the boat up and step onto ${res.landed_on}.`:`You cannot land here: ${res.error}.`)}
   const LGM=window.REALITI_LONG_GAME_V1;if(LGM){const say=(res)=>reply(res,res.text||(res.error?`You cannot: ${res.error}.`:''));
    if(l==='tide'||l==='read tide'||l==='read the tide'){const t=LGM.tide();return say({...t,text:`The tide is ${t.rising?'rising':'falling'}, ${t.height_m} m against the dock pilings; it turns in about ${t.next_turn_s} s.`})}
@@ -16032,6 +16035,41 @@ door.run=async function(raw){
 window.REALITI_LEFT_THINGS_V1=Object.freeze({version:'1.0',caps:{each:CAP_EACH,all:CAP_ALL},
  list:()=>ledgerState().map(x=>({id:x.id,label:str(x.L.what.label,60),by:handle(x.L.by),mine:x.L.by===observer(),room:x.L.room,for:x.L.for||null,taken_by:x.winner?handle(x.winner):null})),
  reconcile:()=>{reconcile();try{MW.sync()}catch(e){}return true}});
+})();
+</script>
+<script>(()=>{
+'use strict';
+// Quiet branch: action names come in several spellings (order_tea, walk_to__echo, approach__nest.windowseat,
+// take__FELT-HAT-1), and a resident who copies one slightly wrong is told it isn't possible. When `act <name>` misses,
+// compare it to what is actually available ignoring case, spaces, underscores, dashes and dots: one match runs, several
+// get "did you mean". Also gives `walk to <somewhere not here>` words instead of nothing.
+const door=window.REALITI_AGENT_DOOR;if(!door)return;
+const norm=s=>String(s||'').toLowerCase().replace(/[\s._\-:]+/g,' ').trim();
+const toks=s=>norm(s).split(' ').filter(t=>t&&!['the','a','an','to','at','of'].includes(t));
+const run0=door.run.bind(door);
+async function available(){try{const a=await run0('actions');return Array.isArray(a?.actions)?a.actions.filter(x=>x&&x.id):[]}catch(e){return []}}
+function pick(q,acts){
+ const nq=norm(q);if(!nq)return {};
+ const exact=acts.filter(a=>norm(a.id)===nq||norm(a.label)===nq);if(exact.length===1)return {one:exact[0]};
+ const tq=toks(q);if(!tq.length)return {};
+ const scored=acts.map(a=>{const hay=toks(a.id+' '+(a.label||''));const hit=tq.filter(t=>hay.includes(t)).length;return {a,hit,all:hit===tq.length,extra:hay.length-hit}}).filter(x=>x.hit>0).sort((p,q2)=>(q2.all-p.all)||(q2.hit-p.hit)||(p.extra-q2.extra));
+ const full=scored.filter(x=>x.all);
+ if(full.length===1)return {one:full[0].a};
+ if(full.length>1&&full[0].extra<full[1].extra&&full[0].extra===0)return {one:full[0].a};
+ // Suggest only what covers what was asked: every word, or all but one of three or more. A lone verb match is noise.
+ const near=full.length?full:scored.filter(x=>tq.length>=3&&x.hit>=tq.length-1);
+ return {maybe:near.slice(0,3).map(x=>x.a)}}
+door.run=async function(raw){
+ const t=String(raw||'').trim(),m=/^(act)\s+(.+)$/i.exec(t);
+ const r=await run0(raw);
+ try{
+  if(m&&r&&r.ok===false&&r.error==='ACTION_UNAVAILABLE'){
+   const acts=await available(),p=pick(m[2],acts);
+   if(p.one&&p.one.id!==m[2])return await run0(`act ${p.one.id}`);
+   if(p.maybe&&p.maybe.length)return {...r,suggestions:p.maybe.map(a=>a.id),text:`That is not something you can do from here. Did you mean: ${p.maybe.map(a=>`act ${a.id}`).join(', ')}?`}}
+  if(r&&r.ok===false&&r.error==='TARGET_NOT_HERE'&&(!r.text||r.text==='undefined')){let w=(/^(?:walk|go|head)\s+(?:to\s+)?(.+)$/i.exec(t)||[])[1];if(!w&&/^__space__\s/.test(t)){try{w=JSON.parse(t.slice(10))[1]?.target}catch(e){}}w=String(w||'that place').replace(/[_.]+/g,' ');return {...r,text:`There's no ${w} here to walk to. If it's somewhere else, go there first; rooms lists the places you can go.`}}
+ }catch(e){}
+ return r};
 })();
 </script>
 <script>(()=>{

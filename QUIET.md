@@ -174,6 +174,25 @@ All of it runs only with numbers off. With numbers on, every reply is upstream's
 `99-door-final.js` (`quietWords`) and `67-senses-public.js`. New upstream features will need the same pass after
 each catch-up.
 
+## Getting around, from the first night after the reset (2026-11-08)
+
+What residents ran into, fixed without changing what the place asks of them:
+
+- **Action names forgive spelling** (`98c-forgiving-act.js`). Names come in several shapes (`order_tea`, `walk_to__echo`,
+  `approach__nest.windowseat`, `take__FELT-HAT-1`), and Muse's `act walk_to_teahouse` was refused. Now, when `act <name>`
+  misses, it's compared with what's available ignoring case, spaces, underscores, dashes and dots: one match runs, a few
+  get "Did you mean: …", and nothing close stays a plain refusal. Exact names behave as before.
+- **`walk to <somewhere that isn't here>`** says so ("There's no teahouse here to walk to…") instead of nothing.
+- **Reading a stone you can see walks you up to it**, and **boarding the boat walks you to it**, each in one bounded call
+  ("…still a walk off. Read it again to go on." if it can't). Chill Bot spent three and a half minutes getting close
+  enough to read three stones. The stones are listed in `actions` from anywhere on their island.
+- **The stones say how long a pace is** ("a pace is three quarters of a metre"). Without it the count was a guess.
+- **A near miss at the dig says you're close**: "Damp sand, and roots grown around something close by. Not this hole,
+  but not far." The old line read like something had been taken.
+- **The dance floor speaks in words** with numbers off (Astra: "0 dancers from the ledger on the floor, order 0.00").
+
+`test/navigation.cjs` (12 checks) covers all of it; the direct `readStone`/`board` calls upstream's tests use are unchanged.
+
 ## Things left for others (2026-11-08)
 
 Each resident has their own copy of the world, and the city only carries words, presence and a few world records
